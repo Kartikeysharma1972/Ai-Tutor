@@ -7,7 +7,7 @@ import authMiddleware from '../middleware/auth.js';
 import User from '../models/User.js';
 import Session from '../models/Session.js';
 import TestAttempt from '../models/TestAttempt.js';
-import { buildSystemPrompt, getMockTestConfig } from '../utils/gradePrompts.js';
+import { buildSystemPrompt, getMockTestConfig, getExpectedTypes } from '../utils/gradePrompts.js';
 
 const router = Router();
 let groq;
@@ -261,6 +261,26 @@ router.post('/project-ideas', authMiddleware, async (req, res) => {
 });
 
 // ---------- MOCK TEST GENERATOR ----------
+function validateQuestionDiversity(questions, grade) {
+  const expectedTypes = getExpectedTypes(grade);
+  const typesUsed = new Set(questions.map(q => q.type).filter(Boolean));
+  const minTypesRequired = Math.min(3, expectedTypes.length);
+  return typesUsed.size >= minTypesRequired;
+}
+
+function fixQuestionTypes(questions, grade) {
+  const expectedTypes = getExpectedTypes(grade);
+  return questions.map(q => {
+    if (!q.type || !expectedTypes.includes(q.type)) {
+      if (q.options && q.options.length > 0) q.type = 'mcq';
+      else if (q.pairs) q.type = 'match-following';
+      else if (q.items) q.type = 'sequence-ordering';
+      else q.type = 'fill-blank';
+    }
+    return q;
+  });
+}
+
 router.post('/mock-test/generate', authMiddleware, async (req, res) => {
   try {
     const { subject, chapters } = req.body;
@@ -270,17 +290,25 @@ router.post('/mock-test/generate', authMiddleware, async (req, res) => {
     const config = getMockTestConfig(user.grade);
     const systemPrompt = buildSystemPrompt(user.grade, 'mock-test', { subject, chapters });
 
-    const aiResponse = await chatWithGroq(systemPrompt, [
-      { role: 'user', content: `Generate a mock test for ${subject}, chapters: ${chapters?.join(', ') || 'All chapters'}. Return ONLY a JSON array of question objects.` },
-    ], { jsonMode: true, temperature: 0.8, maxTokens: 8000 });
+    let questions = [];
+    const maxAttempts = 2;
 
-    let questions;
-    try {
-      const parsed = JSON.parse(aiResponse);
-      questions = Array.isArray(parsed) ? parsed : parsed.questions || [];
-    } catch {
-      const match = aiResponse.match(/\[[\s\S]*\]/);
-      questions = match ? JSON.parse(match[0]) : [];
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const aiResponse = await chatWithGroq(systemPrompt, [
+        { role: 'user', content: `Generate a mock test for ${subject}, chapters: ${chapters?.join(', ') || 'All chapters'}. You MUST use a variety of question types as specified. Return ONLY valid JSON: {"questions": [...]}` },
+      ], { jsonMode: true, temperature: attempt === 0 ? 0.8 : 0.9, maxTokens: 8000 });
+
+      try {
+        const parsed = JSON.parse(aiResponse);
+        questions = Array.isArray(parsed) ? parsed : parsed.questions || [];
+      } catch {
+        const match = aiResponse.match(/\[[\s\S]*\]/);
+        questions = match ? JSON.parse(match[0]) : [];
+      }
+
+      questions = fixQuestionTypes(questions, user.grade);
+
+      if (validateQuestionDiversity(questions, user.grade)) break;
     }
 
     res.json({ questions, config });
@@ -318,7 +346,7 @@ router.post('/mock-test/submit', authMiddleware, async (req, res) => {
       topicAccuracy[q.topic].total++;
       if (isCorrect) topicAccuracy[q.topic].correct++;
 
-      return { ...q, isCorrect };
+      return { ...q, isCorrect, timeTakenSeconds: q.timeTakenSeconds || 0 };
     });
 
     const weakAreas = Object.entries(topicAccuracy)
@@ -348,6 +376,9 @@ router.post('/mock-test/submit', authMiddleware, async (req, res) => {
       topicWiseAccuracy: topicAccuracy,
       weakAreas,
       questions: gradedQuestions,
+      timeTaken,
+      timeAllotted: config.totalTime * 60,
+      subject,
     });
   } catch (err) {
     console.error('Mock test submit error:', err);

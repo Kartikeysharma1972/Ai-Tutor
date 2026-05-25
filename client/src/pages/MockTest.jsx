@@ -7,7 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { aiAPI } from '../utils/api';
 import toast from 'react-hot-toast';
 
-const instructions = [
+const baseInstructions = [
   'Read all questions carefully before answering.',
   'Each question carries equal marks unless specified.',
   'There is no negative marking.',
@@ -16,8 +16,21 @@ const instructions = [
   'Manage your time wisely — keep an eye on the timer.',
   'Attempt all questions before submitting.',
   'Click "Submit Test" after completing all questions.',
+  'Ensure stable internet connection during the test.',
   'The timer will automatically submit the test once time is over.',
 ];
+
+function getInstructions(subject, grade) {
+  const instructions = [...baseInstructions];
+  const subjectLower = (subject || '').toLowerCase();
+  if (['maths', 'mathematics', 'science', 'physics', 'chemistry'].some(s => subjectLower.includes(s))) {
+    instructions.push('Keep rough sheets ready. Show step-by-step work for numericals.');
+  }
+  if (['computer science', 'cs', 'coding', 'informatics'].some(s => subjectLower.includes(s))) {
+    instructions.push('Carefully read code snippets before selecting. Trace execution mentally.');
+  }
+  return instructions;
+}
 
 const typeLabels = {
   'mcq': 'MCQ', 'true-false': 'True / False', 'fill-blank': 'Fill in the Blank',
@@ -188,6 +201,8 @@ export default function MockTest() {
   const [submitting, setSubmitting] = useState(false);
   const timerRef = useRef(null);
   const startTimeRef = useRef(null);
+  const questionTimeRef = useRef({});
+  const questionStartRef = useRef(null);
 
   useEffect(() => {
     if (!subject) { navigate('/exam-prep'); return; }
@@ -208,15 +223,29 @@ export default function MockTest() {
     }
   };
 
+  const trackQuestionTime = (fromQ, toQ) => {
+    if (questionStartRef.current !== null && fromQ !== undefined) {
+      const elapsed = Math.round((Date.now() - questionStartRef.current) / 1000);
+      questionTimeRef.current[fromQ] = (questionTimeRef.current[fromQ] || 0) + elapsed;
+    }
+    questionStartRef.current = Date.now();
+  };
+
   const startTest = () => {
     setPhase('test');
     startTimeRef.current = Date.now();
+    questionStartRef.current = Date.now();
     timerRef.current = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) { clearInterval(timerRef.current); handleSubmit(); return 0; }
         return prev - 1;
       });
     }, 1000);
+  };
+
+  const navigateTo = (idx) => {
+    trackQuestionTime(current, idx);
+    setCurrent(idx);
   };
 
   useEffect(() => {
@@ -232,12 +261,17 @@ export default function MockTest() {
     if (submitting) return;
     setSubmitting(true);
     if (timerRef.current) clearInterval(timerRef.current);
+    trackQuestionTime(current);
     const timeTaken = startTimeRef.current ? Math.round((Date.now() - startTimeRef.current) / 1000) : 0;
 
     try {
       const res = await aiAPI.submitMockTest({
         subject, chapters,
-        questions: questions.map((q, i) => ({ ...q, studentAnswer: answers[i] ?? null })),
+        questions: questions.map((q, i) => ({
+          ...q,
+          studentAnswer: answers[i] ?? null,
+          timeTakenSeconds: questionTimeRef.current[i] || 0,
+        })),
         timeTaken,
       });
       navigate(`/test-result/${res.data.testId}`, { state: { result: res.data } });
@@ -245,7 +279,7 @@ export default function MockTest() {
       toast.error('Failed to submit test');
       setSubmitting(false);
     }
-  }, [submitting, questions, answers, subject, chapters, navigate]);
+  }, [submitting, questions, answers, subject, chapters, navigate, current]);
 
   const formatTime = (s) => `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
   const answeredCount = Object.keys(answers).length;
@@ -265,6 +299,10 @@ export default function MockTest() {
   }
 
   if (phase === 'info') {
+    const testInstructions = getInstructions(subject, user?.grade);
+    const questionTypes = [...new Set(questions.map(q => q.type).filter(Boolean))];
+    const chapterDisplay = chapters && chapters.length > 0 ? chapters.join(', ') : 'All chapters';
+
     return (
       <AppLayout activeTool="exam-prep">
         <div className="p-6 max-w-3xl mx-auto">
@@ -278,12 +316,24 @@ export default function MockTest() {
                 <div><div className="text-2xl font-bold text-primary-500">Mixed</div><div className="text-xs text-gray-500">Difficulty</div></div>
                 <div><div className="text-2xl font-bold text-primary-500">Class {user?.grade}</div><div className="text-xs text-gray-500">Level</div></div>
               </div>
+              <div className="mt-4 pt-3 border-t border-primary-100">
+                <p className="text-xs text-gray-500 text-center">
+                  <span className="font-medium">Topics:</span> {chapterDisplay}
+                </p>
+                {questionTypes.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 justify-center mt-2">
+                    {questionTypes.map(t => (
+                      <span key={t} className="px-2 py-0.5 rounded-full text-[10px] bg-white text-primary-600 font-medium">{formatType(t)}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-6">
               <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2"><FiAlertCircle className="text-yellow-500" /> Instructions</h3>
               <ol className="space-y-2">
-                {instructions.map((inst, i) => (
+                {testInstructions.map((inst, i) => (
                   <li key={i} className="text-sm text-gray-500 flex gap-2"><span className="text-gray-300 font-medium">{i + 1}.</span> {inst}</li>
                 ))}
               </ol>
@@ -343,7 +393,7 @@ export default function MockTest() {
             {questions.map((_, i) => (
               <button
                 key={i}
-                onClick={() => setCurrent(i)}
+                onClick={() => navigateTo(i)}
                 className={`w-8 h-8 rounded-lg text-xs font-medium transition-all ${
                   i === current ? 'bg-primary-400 text-white' :
                   answers[i] !== undefined ? 'bg-primary-100 text-primary-600' :
@@ -356,7 +406,7 @@ export default function MockTest() {
           </div>
           <div className="flex items-center justify-between max-w-3xl mx-auto">
             <button
-              onClick={() => setCurrent(Math.max(0, current - 1))} disabled={current === 0}
+              onClick={() => navigateTo(Math.max(0, current - 1))} disabled={current === 0}
               className="flex items-center gap-1 px-4 py-2 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-30"
             >
               <FiChevronLeft /> Previous
@@ -370,7 +420,7 @@ export default function MockTest() {
               </button>
             ) : (
               <button
-                onClick={() => setCurrent(Math.min(questions.length - 1, current + 1))}
+                onClick={() => navigateTo(Math.min(questions.length - 1, current + 1))}
                 className="flex items-center gap-1 px-4 py-2 text-sm text-primary-500 hover:text-primary-600 font-medium"
               >
                 Next <FiChevronRight />

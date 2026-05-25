@@ -4,6 +4,8 @@ const questionSchema = new mongoose.Schema({
   question: String,
   type: String,
   options: [String],
+  pairs: [{ left: String, right: String }],
+  items: [String],
   correctAnswer: mongoose.Schema.Types.Mixed,
   studentAnswer: mongoose.Schema.Types.Mixed,
   isCorrect: Boolean,
@@ -12,6 +14,7 @@ const questionSchema = new mongoose.Schema({
   difficulty: { type: String, enum: ['easy', 'medium', 'hard'] },
   topic: String,
   timeTaken: Number,
+  timeTakenSeconds: Number,
 });
 
 const testAttemptSchema = new mongoose.Schema({

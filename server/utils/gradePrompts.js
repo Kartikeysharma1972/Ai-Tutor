@@ -126,6 +126,42 @@ function getQuestionTypeSchema(gradeGroup) {
   return schemas[gradeGroup] || schemas['middle'];
 }
 
+function getQuestionTypeDistribution(gradeGroup, totalQuestions) {
+  const distributions = {
+    'primary-lower': { 'mcq': 0.35, 'true-false': 0.25, 'fill-blank': 0.20, 'match-following': 0.20 },
+    'primary-upper': { 'mcq': 0.27, 'true-false': 0.13, 'fill-blank': 0.20, 'match-following': 0.20, 'sequence-ordering': 0.20 },
+    'middle': { 'mcq': 0.20, 'true-false': 0.08, 'fill-blank': 0.12, 'match-following': 0.12, 'sequence-ordering': 0.12, 'assertion-reason': 0.12, 'case-study': 0.12, 'one-word': 0.12 },
+    'secondary': { 'mcq': 0.20, 'true-false': 0.08, 'fill-blank': 0.08, 'assertion-reason': 0.16, 'case-study': 0.16, 'numerical': 0.12, 'hots': 0.12, 'code-output': 0.08 },
+    'senior-secondary': { 'mcq': 0.13, 'true-false': 0.07, 'fill-blank': 0.07, 'assertion-reason': 0.10, 'case-study': 0.13, 'numerical': 0.13, 'multi-select': 0.10, 'integer-type': 0.10, 'matrix-match': 0.07, 'code-output': 0.10 },
+  };
+
+  const dist = distributions[gradeGroup] || distributions['middle'];
+  const types = Object.entries(dist);
+  let remaining = totalQuestions;
+  const result = [];
+
+  types.forEach(([type, pct], i) => {
+    const count = i === types.length - 1 ? remaining : Math.max(1, Math.round(totalQuestions * pct));
+    remaining -= count;
+    if (remaining < 0) remaining = 0;
+    result.push(`- ${count} questions of type "${type}"`);
+  });
+
+  return result.join('\n');
+}
+
+export function getExpectedTypes(grade) {
+  const gradeGroup = getGradeGroup(grade);
+  const typeMap = {
+    'primary-lower': ['mcq', 'true-false', 'fill-blank', 'match-following'],
+    'primary-upper': ['mcq', 'true-false', 'fill-blank', 'match-following', 'sequence-ordering'],
+    'middle': ['mcq', 'true-false', 'fill-blank', 'match-following', 'sequence-ordering', 'assertion-reason', 'case-study', 'one-word'],
+    'secondary': ['mcq', 'true-false', 'fill-blank', 'assertion-reason', 'case-study', 'numerical', 'hots', 'code-output'],
+    'senior-secondary': ['mcq', 'true-false', 'fill-blank', 'assertion-reason', 'case-study', 'numerical', 'multi-select', 'integer-type', 'matrix-match', 'code-output'],
+  };
+  return typeMap[gradeGroup] || typeMap['middle'];
+}
+
 export function buildSystemPrompt(grade, tool, extra = {}) {
   const behavior = getGradeBehavior(grade);
   const gradeGroup = getGradeGroup(grade);
@@ -203,6 +239,7 @@ Make ideas creative, feasible for a Class ${grade} student, and aligned with CBS
   if (tool === 'mock-test') {
     const testConfig = getMockTestConfig(grade);
     const typeSchemas = getQuestionTypeSchema(gradeGroup);
+    const typeDistribution = getQuestionTypeDistribution(gradeGroup, testConfig.totalQuestions);
     systemPrompt += `
 TOOL: Mock Test Generator
 SUBJECT: ${extra.subject}
@@ -213,8 +250,10 @@ Generate exactly ${testConfig.totalQuestions} questions following this structure
 - Medium: ${testConfig.mediumPercent}% (${Math.round(testConfig.totalQuestions * testConfig.mediumPercent / 100)} questions)
 - Hard: ${testConfig.hardPercent}% (${Math.round(testConfig.totalQuestions * testConfig.hardPercent / 100)} questions)
 
-ALLOWED QUESTION TYPES for Class ${grade}: ${behavior.questionStyle}
-Use a good MIX of these question types — do NOT make all questions MCQ.
+MANDATORY QUESTION TYPE DISTRIBUTION — You MUST follow this EXACTLY:
+${typeDistribution}
+
+⚠️ CRITICAL: Do NOT generate all MCQ questions. The distribution above is MANDATORY. If it says "2 true-false", you MUST generate exactly 2 true-false type questions. If it says "2 match-following", you MUST include 2 match-following questions with a "pairs" array. Follow each type's schema below EXACTLY.
 
 RESPONSE FORMAT: Return a JSON object with a "questions" key containing an array.
 Each question object MUST follow one of these schemas based on its type:
@@ -223,12 +262,14 @@ ${typeSchemas}
 
 IMPORTANT:
 - Return ONLY valid JSON: {"questions": [...]}
-- Use a variety of question types as listed above
+- You MUST follow the MANDATORY type distribution above — NOT all MCQ
 - Make questions CBSE-aligned and grade-appropriate
-- For "match-the-following", provide exactly 4-5 pairs
-- For "sequence-ordering", provide 4-6 items to order
+- For "match-following" and "matrix-match", provide exactly 4-5 pairs in the "pairs" array
+- For "sequence-ordering", provide 4-6 items in the "items" array (shuffled, not in correct order)
 - For "assertion-reason", always provide both Assertion and Reason in the question text
+- For "multi-select", correctAnswer should list all correct options separated by ", "
 - correctAnswer must exactly match one of the options (for MCQ types) or be the precise answer
+- Each question MUST have a "type" field matching one of the types listed above
 `;
   }
 
