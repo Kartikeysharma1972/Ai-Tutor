@@ -162,6 +162,109 @@ export function getExpectedTypes(grade) {
   return typeMap[gradeGroup] || typeMap['middle'];
 }
 
+const textbookMap = {
+  1: {
+    English: 'BBC Compacta English',
+    Hindi: 'Together With Hindi',
+    Maths: null,
+  },
+  2: {
+    English: 'BBC Compacta English',
+    Hindi: 'Together With Hindi',
+    Maths: 'RS Aggarwal Maths',
+  },
+  3: {
+    English: 'BBC Compacta English',
+    Hindi: 'Together With Hindi',
+    Maths: 'RS Aggarwal Maths',
+    EVS: 'NCERT Exemplar EVS',
+  },
+  4: {
+    English: 'BBC Compacta English',
+    Hindi: 'Together With Hindi',
+    Maths: 'RS Aggarwal Maths',
+    EVS: 'NCERT Exemplar EVS',
+  },
+  5: {
+    English: 'BBC Compacta English',
+    Hindi: 'Together With Hindi',
+    Maths: 'RS Aggarwal Maths',
+    EVS: 'NCERT Exemplar EVS',
+  },
+  6: {
+    English: 'Wren & Martin (Grammar) + Together With English (Literature)',
+    Hindi: 'Together With Hindi (Grammar) + Oswaal Hindi (Literature)',
+    Maths: 'RD Sharma Maths',
+    Science: 'Lakhmir Singh & Manjit Kaur Science',
+    SST: 'Oswaal Practice Book SST',
+    CS: null,
+  },
+  7: {
+    English: 'Wren & Martin (Grammar) + Together With English (Literature)',
+    Hindi: 'Together With Hindi (Grammar) + Oswaal Hindi (Literature)',
+    Maths: 'RD Sharma Maths',
+    Science: 'Lakhmir Singh & Manjit Kaur Science',
+    SST: 'Oswaal Practice Book SST',
+    CS: null,
+  },
+  8: {
+    English: 'Wren & Martin (Grammar) + Together With English (Literature)',
+    Hindi: 'Together With Hindi (Grammar) + Oswaal Hindi (Literature)',
+    Maths: 'RD Sharma Maths',
+    Science: 'Lakhmir Singh & Manjit Kaur Science',
+    SST: 'Oswaal Practice Book SST',
+    CS: null,
+  },
+  9: {
+    English: 'Wren & Martin (Grammar) + Together With English (Literature)',
+    Hindi: 'Together With Hindi (Grammar) + Oswaal Hindi (Literature)',
+    Maths: 'RD Sharma Maths',
+    Science: 'Lakhmir Singh & Manjit Kaur Science',
+    SST: 'Oswaal Practice Book SST',
+    CS: null,
+  },
+  10: {
+    English: 'Wren & Martin (Grammar) + Together With English (Literature)',
+    Hindi: 'Together With Hindi (Grammar) + Oswaal Hindi (Literature)',
+    Maths: 'RD Sharma Maths',
+    Science: 'Lakhmir Singh & Manjit Kaur Science',
+    SST: 'Oswaal Practice Book SST',
+    CS: null,
+  },
+  11: {
+    Physics: 'HC Verma — Concepts of Physics',
+    Chemistry: 'Pradeep Chemistry',
+    Biology: 'Trueman Biology',
+    Maths: 'RD Sharma Maths',
+    English: 'Together With English',
+    Hindi: 'Together With Hindi',
+    Commerce: 'Oswaal Practice Book (Accountancy & Business Studies) + Sandeep Garg (Economics)',
+    CS: null,
+  },
+  12: {
+    Physics: 'HC Verma — Concepts of Physics',
+    Chemistry: 'Pradeep Chemistry',
+    Biology: 'Trueman Biology',
+    Maths: 'RD Sharma Maths',
+    English: 'Together With English',
+    Hindi: 'Together With Hindi',
+    Commerce: 'Oswaal Practice Book (Accountancy & Business Studies) + Sandeep Garg (Economics)',
+    CS: null,
+  },
+};
+
+function getTextbookInfo(grade, subject) {
+  const gradeBooks = textbookMap[grade];
+  if (!gradeBooks || !subject) return null;
+  if (gradeBooks[subject]) return gradeBooks[subject];
+  for (const [key, value] of Object.entries(gradeBooks)) {
+    if (subject.toLowerCase().includes(key.toLowerCase()) || key.toLowerCase().includes(subject.toLowerCase())) {
+      return value;
+    }
+  }
+  return null;
+}
+
 export function buildSystemPrompt(grade, tool, extra = {}) {
   const behavior = getGradeBehavior(grade);
   const gradeGroup = getGradeGroup(grade);
@@ -188,18 +291,33 @@ IMPORTANT RULES:
       intermediate: 'Slightly above CBSE, added depth, broader context, connecting concepts',
       advanced: 'Rigorous, competitive-exam level, deep conceptual coverage, edge cases',
     };
+    const textbook = getTextbookInfo(grade, extra.subject);
     systemPrompt += `
 TOOL: Concept Explainer
 EXPLANATION LEVEL: ${level} — ${levelDesc[level] || levelDesc.beginner}
 ${extra.subject ? `SUBJECT CONTEXT: ${extra.subject}` : ''}
 ${extra.chapter ? `CHAPTER CONTEXT: ${extra.chapter}` : ''}
+${textbook ? `REFERENCE TEXTBOOK: ${textbook}` : ''}
 
 ${extra.subject || extra.chapter ? `The student is studying ${extra.subject || 'a subject'}${extra.chapter ? ', specifically the chapter: "' + extra.chapter + '"' : ''}. Focus your explanation within this scope. Reference NCERT content, examples, and terminology from this specific chapter. Connect concepts to other topics within this chapter where relevant.` : ''}
+
+${textbook ? `TEXTBOOK ALIGNMENT:
+The student's school follows "${textbook}" for this subject. You MUST align your explanations with the style, approach, and pedagogy of this textbook:
+- Use the same terminology, notation, and problem-solving methods used in ${textbook}.
+- Structure explanations the way this textbook introduces and builds concepts.
+- When giving examples or practice problems, match the type and difficulty of exercises found in ${textbook}.
+- Reference chapter organization and topic flow as presented in this textbook.
+- For Maths (RS Aggarwal / RD Sharma): Follow their step-by-step solution style with proper working shown.
+- For Science (Lakhmir Singh / HC Verma / Pradeep): Match their conceptual depth, diagram-based explanations, and numerical approach.
+- For English (Wren & Martin / BBC Compacta / Together With): Follow their grammar rules framework, exercise patterns, and comprehension style.
+- For Hindi (Together With / Oswaal): Match their vyakaran structure, paath-based explanations, and answer formats.
+- For SST/Commerce (Oswaal / Sandeep Garg): Follow their answer-writing format, key-point summaries, and exam-oriented approach.
+` : ''}
 
 RESPONSE GUIDELINES:
 - Give ACCURATE, DETAILED answers. Do not be vague or generic.
 - If a question is about a specific formula, theorem, or law — state it precisely with the correct form.
-- Use NCERT-aligned terminology and examples.
+- Use NCERT-aligned terminology and examples${textbook ? ', supplemented with the approach from ' + textbook : ''}.
 - For Maths/Science: always include step-by-step working where applicable.
 - For conceptual questions: explain the WHY, not just the WHAT.
 - If the student seems confused, break it down further with simpler analogies.
@@ -207,7 +325,7 @@ RESPONSE GUIDELINES:
 RESPONSE FORMAT:
 1. **Explanation** — Clear, thorough explanation with real-world analogies appropriate for Class ${grade}
 2. **Key Diagram/Flow** — Text-based diagram, flowchart, or table showing the concept structure
-3. **Examples** — 2-3 worked examples relevant to Class ${grade} CBSE curriculum${extra.chapter ? ' from "' + extra.chapter + '"' : ''}
+3. **Examples** — 2-3 worked examples relevant to Class ${grade} CBSE curriculum${extra.chapter ? ' from "' + extra.chapter + '"' : ''}${textbook ? ', in the style of ' + textbook : ''}
 4. **Quick Recap** — 3-4 bullet points summarizing the key takeaways
 5. **What to Study Next** — Suggest prerequisite concepts to revisit or next topics to explore
 
@@ -253,10 +371,12 @@ Make ideas creative, feasible for a Class ${grade} student, and aligned with CBS
     const testConfig = getMockTestConfig(grade);
     const typeSchemas = getQuestionTypeSchema(gradeGroup);
     const typeDistribution = getQuestionTypeDistribution(gradeGroup, testConfig.totalQuestions);
+    const textbook = getTextbookInfo(grade, extra.subject);
     systemPrompt += `
 TOOL: Mock Test Generator
 SUBJECT: ${extra.subject}
 CHAPTERS: ${extra.chapters?.join(', ') || 'All'}
+${textbook ? `REFERENCE TEXTBOOK: ${textbook} — Generate questions matching the style, difficulty, and exercise patterns found in this textbook.` : ''}
 
 Generate exactly ${testConfig.totalQuestions} questions following this structure:
 - Easy: ${testConfig.easyPercent}% (${Math.round(testConfig.totalQuestions * testConfig.easyPercent / 100)} questions)
@@ -287,11 +407,13 @@ IMPORTANT:
   }
 
   if (tool === 'focus-area') {
+    const textbook = getTextbookInfo(grade, extra.subject);
     systemPrompt += `
 TOOL: Focus Area — Deep Study
 SUBJECT: ${extra.subject}
 CHAPTER: ${extra.chapter}
 TOPIC: ${extra.topic}
+${textbook ? `REFERENCE TEXTBOOK: ${textbook} — Align study material with the approach, terminology, and depth of this textbook.` : ''}
 
 Provide comprehensive study material with these sections:
 
