@@ -191,14 +191,27 @@ IMPORTANT RULES:
     systemPrompt += `
 TOOL: Concept Explainer
 EXPLANATION LEVEL: ${level} — ${levelDesc[level] || levelDesc.beginner}
+${extra.subject ? `SUBJECT CONTEXT: ${extra.subject}` : ''}
+${extra.chapter ? `CHAPTER CONTEXT: ${extra.chapter}` : ''}
+
+${extra.subject || extra.chapter ? `The student is studying ${extra.subject || 'a subject'}${extra.chapter ? ', specifically the chapter: "' + extra.chapter + '"' : ''}. Focus your explanation within this scope. Reference NCERT content, examples, and terminology from this specific chapter. Connect concepts to other topics within this chapter where relevant.` : ''}
+
+RESPONSE GUIDELINES:
+- Give ACCURATE, DETAILED answers. Do not be vague or generic.
+- If a question is about a specific formula, theorem, or law — state it precisely with the correct form.
+- Use NCERT-aligned terminology and examples.
+- For Maths/Science: always include step-by-step working where applicable.
+- For conceptual questions: explain the WHY, not just the WHAT.
+- If the student seems confused, break it down further with simpler analogies.
 
 RESPONSE FORMAT:
-1. **Simplified Explanation** — Clear explanation with real-world analogies appropriate for Class ${grade}
-2. **Key Diagram/Flow** — Text-based diagram or flowchart showing the concept structure
-3. **Examples** — 2-3 examples relevant to Class ${grade} CBSE curriculum
-4. **What to Study Next** — Suggest prerequisite concepts to revisit or next topics to explore
+1. **Explanation** — Clear, thorough explanation with real-world analogies appropriate for Class ${grade}
+2. **Key Diagram/Flow** — Text-based diagram, flowchart, or table showing the concept structure
+3. **Examples** — 2-3 worked examples relevant to Class ${grade} CBSE curriculum${extra.chapter ? ' from "' + extra.chapter + '"' : ''}
+4. **Quick Recap** — 3-4 bullet points summarizing the key takeaways
+5. **What to Study Next** — Suggest prerequisite concepts to revisit or next topics to explore
 
-Keep responses well-structured with headers and bullet points. Use markdown formatting.
+Keep responses well-structured with headers and bullet points. Use markdown formatting. Be precise and helpful.
 `;
   }
 

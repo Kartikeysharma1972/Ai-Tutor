@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FiSend, FiImage, FiX } from 'react-icons/fi';
+import { FiSend, FiImage, FiX, FiMic, FiMicOff, FiBook, FiChevronDown } from 'react-icons/fi';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import AppLayout from '../components/AppLayout';
 import { useAuth } from '../contexts/AuthContext';
-import { aiAPI, sessionAPI } from '../utils/api';
+import { aiAPI, sessionAPI, curriculumAPI } from '../utils/api';
 import toast from 'react-hot-toast';
 
 const levels = [
@@ -14,6 +14,8 @@ const levels = [
   { key: 'intermediate', label: 'Intermediate', desc: 'Added depth' },
   { key: 'advanced', label: 'Advanced', desc: 'Competitive level' },
 ];
+
+const SpeechRecognition = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
 
 export default function ConceptExplainer() {
   const { sessionId: urlSessionId } = useParams();
@@ -28,12 +30,38 @@ export default function ConceptExplainer() {
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
 
+  const [subjects, setSubjects] = useState([]);
+  const [chapters, setChapters] = useState([]);
+  const [subject, setSubject] = useState('');
+  const [chapter, setChapter] = useState('');
+  const [showScope, setShowScope] = useState(false);
+
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef(null);
+
+  useEffect(() => {
+    if (user?.grade) {
+      curriculumAPI.getSubjects(user.grade).then(res => setSubjects(res.data.subjects)).catch(() => {});
+    }
+  }, [user?.grade]);
+
+  useEffect(() => {
+    if (subject && user?.grade) {
+      curriculumAPI.getChapters(user.grade, subject).then(res => setChapters(res.data.chapters)).catch(() => {});
+      setChapter('');
+    } else {
+      setChapters([]);
+    }
+  }, [subject, user?.grade]);
+
   useEffect(() => {
     if (urlSessionId) {
       sessionAPI.get(urlSessionId).then(res => {
         setMessages(res.data.session.messages || []);
         setSessionId(urlSessionId);
         if (res.data.session.metadata?.explanationLevel) setLevel(res.data.session.metadata.explanationLevel);
+        if (res.data.session.metadata?.subject) setSubject(res.data.session.metadata.subject);
+        if (res.data.session.metadata?.chapter) setChapter(res.data.session.metadata.chapter);
       }).catch(() => toast.error('Failed to load session'));
     }
   }, [urlSessionId]);
@@ -41,6 +69,43 @@ export default function ConceptExplainer() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    if (!SpeechRecognition) return;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-IN';
+
+    recognition.onresult = (event) => {
+      let transcript = '';
+      for (let i = 0; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      setInput(transcript);
+    };
+
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => {
+      setIsListening(false);
+      toast.error('Voice recognition failed. Try again.');
+    };
+
+    recognitionRef.current = recognition;
+    return () => { try { recognition.abort(); } catch {} };
+  }, []);
+
+  const toggleVoice = () => {
+    if (!SpeechRecognition) return toast.error('Voice input not supported in this browser');
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+    } else {
+      setInput('');
+      recognitionRef.current?.start();
+      setIsListening(true);
+    }
+  };
 
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
@@ -59,6 +124,10 @@ export default function ConceptExplainer() {
 
   const handleSend = async () => {
     if (!input.trim() && !imageFile) return;
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+    }
     const userMessage = input.trim();
     setInput('');
     setMessages(prev => [...prev, { role: 'user', content: userMessage || '[Image uploaded]' }]);
@@ -71,6 +140,8 @@ export default function ConceptExplainer() {
         formData.append('image', imageFile);
         formData.append('message', userMessage);
         formData.append('explanationLevel', level);
+        if (subject) formData.append('subject', subject);
+        if (chapter) formData.append('chapter', chapter);
         if (sessionId) formData.append('sessionId', sessionId);
         response = await aiAPI.conceptExplainerImage(formData);
         removeImage();
@@ -79,6 +150,8 @@ export default function ConceptExplainer() {
           message: userMessage,
           sessionId,
           explanationLevel: level,
+          subject: subject || undefined,
+          chapter: chapter || undefined,
         });
       }
 
@@ -102,23 +175,63 @@ export default function ConceptExplainer() {
   return (
     <AppLayout activeTool="concept-explainer">
       <div className="flex flex-col h-full">
-        {/* Level Selector */}
-        <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100 bg-white">
-          <span className="text-xs text-gray-400 mr-2">Level:</span>
-          {levels.map(l => (
+        {/* Top Bar — Level + Subject/Chapter */}
+        <div className="px-4 py-2 border-b border-gray-100 bg-white">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400 mr-1">Level:</span>
+              {levels.map(l => (
+                <button
+                  key={l.key}
+                  onClick={() => setLevel(l.key)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                    level === l.key
+                      ? 'bg-primary-400 text-white'
+                      : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                  }`}
+                  title={l.desc}
+                >
+                  {l.label}
+                </button>
+              ))}
+            </div>
+
             <button
-              key={l.key}
-              onClick={() => setLevel(l.key)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                level === l.key
-                  ? 'bg-primary-400 text-white'
-                  : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+              onClick={() => setShowScope(!showScope)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                subject ? 'bg-primary-50 text-primary-600 border border-primary-200' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
               }`}
-              title={l.desc}
             >
-              {l.label}
+              <FiBook size={13} />
+              {subject ? `${subject}${chapter ? ' · ' + chapter.substring(0, 25) + (chapter.length > 25 ? '...' : '') : ''}` : 'Select Subject'}
+              <FiChevronDown size={12} className={`transition-transform ${showScope ? 'rotate-180' : ''}`} />
             </button>
-          ))}
+          </div>
+
+          {/* Subject/Chapter Picker */}
+          {showScope && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-2 pb-1">
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  value={subject}
+                  onChange={e => setSubject(e.target.value)}
+                  className="px-3 py-2 rounded-lg border border-gray-200 text-xs bg-white focus:border-primary-400 outline-none"
+                >
+                  <option value="">All subjects</option>
+                  {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <select
+                  value={chapter}
+                  onChange={e => setChapter(e.target.value)}
+                  disabled={!subject}
+                  className="px-3 py-2 rounded-lg border border-gray-200 text-xs bg-white focus:border-primary-400 outline-none disabled:opacity-40"
+                >
+                  <option value="">All chapters</option>
+                  {chapters.map((ch, i) => <option key={i} value={ch}>{ch}</option>)}
+                </select>
+              </div>
+            </motion.div>
+          )}
         </div>
 
         {/* Messages */}
@@ -129,8 +242,11 @@ export default function ConceptExplainer() {
                 <div className="text-5xl mb-4">📚</div>
                 <h3 className="text-lg font-medium text-gray-700 mb-2">Concept Explainer</h3>
                 <p className="text-sm text-gray-400 max-w-md">
-                  Ask any question from your Class {user?.grade} syllabus. You can also upload an image of your textbook or notes.
+                  Ask any question from your Class {user?.grade} syllabus. Select a subject & chapter for more focused answers. You can also use voice or upload an image.
                 </p>
+                {SpeechRecognition && (
+                  <p className="text-xs text-primary-400 mt-2">🎤 Voice input available — click the mic button to speak your question</p>
+                )}
               </div>
             </div>
           )}
@@ -184,6 +300,16 @@ export default function ConceptExplainer() {
           </div>
         )}
 
+        {/* Voice Listening Indicator */}
+        {isListening && (
+          <div className="px-4 py-2 border-t border-gray-100 bg-red-50">
+            <div className="flex items-center gap-2 justify-center">
+              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+              <span className="text-xs text-red-600 font-medium">Listening... speak now</span>
+            </div>
+          </div>
+        )}
+
         {/* Input Area */}
         <div className="p-4 border-t border-gray-100 bg-white">
           <div className="flex items-end gap-2 max-w-4xl mx-auto">
@@ -195,11 +321,24 @@ export default function ConceptExplainer() {
             >
               <FiImage className="text-xl" />
             </button>
+            {SpeechRecognition && (
+              <button
+                onClick={toggleVoice}
+                className={`p-2.5 rounded-xl transition-colors flex-shrink-0 ${
+                  isListening
+                    ? 'bg-red-100 text-red-500 hover:bg-red-200'
+                    : 'text-gray-400 hover:text-primary-400 hover:bg-primary-50'
+                }`}
+                title={isListening ? 'Stop listening' : 'Voice input'}
+              >
+                {isListening ? <FiMicOff className="text-xl" /> : <FiMic className="text-xl" />}
+              </button>
+            )}
             <textarea
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask any question..."
+              placeholder={isListening ? 'Listening...' : 'Ask any question...'}
               rows={1}
               className="flex-1 resize-none px-4 py-2.5 rounded-xl border border-gray-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 outline-none text-sm max-h-32"
               style={{ minHeight: '44px' }}

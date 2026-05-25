@@ -105,12 +105,13 @@ router.post('/concept-explainer', authMiddleware, async (req, res) => {
 // ---------- CONCEPT EXPLAINER WITH IMAGE ----------
 router.post('/concept-explainer/image', authMiddleware, upload.single('image'), async (req, res) => {
   try {
-    const { message, sessionId, explanationLevel } = req.body;
+    const { message, sessionId, explanationLevel, subject, chapter } = req.body;
     const user = await User.findById(req.userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const systemPrompt = buildSystemPrompt(user.grade, 'concept-explainer', {
       explanationLevel: explanationLevel || 'beginner',
+      subject, chapter,
     });
 
     const imageBuffer = fs.readFileSync(req.file.path);
