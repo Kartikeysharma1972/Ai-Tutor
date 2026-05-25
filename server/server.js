@@ -18,9 +18,11 @@ app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173', creden
 app.use(express.json({ limit: '50mb' }));
 app.use('/api/uploads', express.static('uploads'));
 
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/ai-tutor')
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => console.error('MongoDB connection error:', err));
+const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/ai-tutor';
+console.log('Connecting to MongoDB...', mongoUri.replace(/\/\/.*:.*@/, '//<credentials>@'));
+mongoose.connect(mongoUri)
+  .then(() => console.log('MongoDB connected successfully'))
+  .catch(err => console.error('MongoDB connection error:', err.message));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/ai', aiRoutes);

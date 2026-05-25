@@ -29,7 +29,8 @@ router.post('/signup', async (req, res) => {
       user: { id: user._id, name: user.name, email: user.email, grade: user.grade }
     });
   } catch (err) {
-    res.status(500).json({ error: 'Server error' });
+    console.error('Signup error:', err.message, err.stack);
+    res.status(500).json({ error: 'Server error', details: err.message });
   }
 });
 
@@ -50,7 +51,8 @@ router.post('/login', async (req, res) => {
       user: { id: user._id, name: user.name, email: user.email, grade: user.grade }
     });
   } catch (err) {
-    res.status(500).json({ error: 'Server error' });
+    console.error('Login error:', err.message, err.stack);
+    res.status(500).json({ error: 'Server error', details: err.message });
   }
 });
 
