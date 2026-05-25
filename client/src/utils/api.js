@@ -33,6 +33,7 @@ export const authAPI = {
 export const aiAPI = {
   conceptExplainer: (data) => api.post('/ai/concept-explainer', data),
   conceptExplainerImage: (formData) => api.post('/ai/concept-explainer/image', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  conceptExplainerFile: (formData) => api.post('/ai/concept-explainer/file', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   summarize: (formData) => api.post('/ai/summarize', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   projectIdeas: (data) => api.post('/ai/project-ideas', data),
   generateMockTest: (data) => api.post('/ai/mock-test/generate', data),

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FiSend, FiImage, FiX, FiMic, FiMicOff, FiBook, FiChevronDown } from 'react-icons/fi';
+import { FiSend, FiImage, FiX, FiMic, FiMicOff, FiBook, FiChevronDown, FiPaperclip } from 'react-icons/fi';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import AppLayout from '../components/AppLayout';
@@ -27,8 +27,10 @@ export default function ConceptExplainer() {
   const [level, setLevel] = useState('beginner');
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  const [docFile, setDocFile] = useState(null);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const docInputRef = useRef(null);
 
   const [subjects, setSubjects] = useState([]);
   const [chapters, setChapters] = useState([]);
@@ -122,15 +124,32 @@ export default function ConceptExplainer() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const handleDocSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error('File too large. Maximum size is 10MB.');
+      return;
+    }
+    setDocFile(file);
+  };
+
+  const removeDoc = () => {
+    setDocFile(null);
+    if (docInputRef.current) docInputRef.current.value = '';
+  };
+
   const handleSend = async () => {
-    if (!input.trim() && !imageFile) return;
+    if (!input.trim() && !imageFile && !docFile) return;
     if (isListening) {
       recognitionRef.current?.stop();
       setIsListening(false);
     }
     const userMessage = input.trim();
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: userMessage || '[Image uploaded]' }]);
+    const displayContent = userMessage || (imageFile ? '[Image uploaded]' : docFile ? `[File: ${docFile.name}]` : '');
+    setMessages(prev => [...prev, { role: 'user', content: displayContent }]);
     setLoading(true);
 
     try {
@@ -145,6 +164,16 @@ export default function ConceptExplainer() {
         if (sessionId) formData.append('sessionId', sessionId);
         response = await aiAPI.conceptExplainerImage(formData);
         removeImage();
+      } else if (docFile) {
+        const formData = new FormData();
+        formData.append('file', docFile);
+        formData.append('message', userMessage);
+        formData.append('explanationLevel', level);
+        if (subject) formData.append('subject', subject);
+        if (chapter) formData.append('chapter', chapter);
+        if (sessionId) formData.append('sessionId', sessionId);
+        response = await aiAPI.conceptExplainerFile(formData);
+        removeDoc();
       } else {
         response = await aiAPI.conceptExplainer({
           message: userMessage,
@@ -242,7 +271,7 @@ export default function ConceptExplainer() {
                 <div className="text-5xl mb-4">📚</div>
                 <h3 className="text-lg font-medium text-gray-700 mb-2">Concept Explainer</h3>
                 <p className="text-sm text-gray-400 max-w-md">
-                  Ask any question from your Class {user?.grade} syllabus. Select a subject & chapter for more focused answers. You can also use voice or upload an image.
+                  Ask any question from your Class {user?.grade} syllabus. Select a subject & chapter for more focused answers. You can also use voice, upload an image, or attach a file (PDF, TXT, DOC).
                 </p>
                 {SpeechRecognition && (
                   <p className="text-xs text-primary-400 mt-2">🎤 Voice input available — click the mic button to speak your question</p>
@@ -300,6 +329,22 @@ export default function ConceptExplainer() {
           </div>
         )}
 
+        {/* Document Preview */}
+        {docFile && (
+          <div className="px-4 py-2 border-t border-gray-100 bg-gray-50">
+            <div className="inline-flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2">
+              <FiPaperclip className="text-primary-400" />
+              <div className="text-xs">
+                <p className="font-medium text-gray-700 truncate max-w-[200px]">{docFile.name}</p>
+                <p className="text-gray-400">{(docFile.size / 1024).toFixed(1)} KB</p>
+              </div>
+              <button onClick={removeDoc} className="ml-1 text-red-400 hover:text-red-500">
+                <FiX size={14} />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Voice Listening Indicator */}
         {isListening && (
           <div className="px-4 py-2 border-t border-gray-100 bg-red-50">
@@ -314,12 +359,20 @@ export default function ConceptExplainer() {
         <div className="p-4 border-t border-gray-100 bg-white">
           <div className="flex items-end gap-2 max-w-4xl mx-auto">
             <input type="file" ref={fileInputRef} accept="image/*" onChange={handleImageSelect} className="hidden" />
+            <input type="file" ref={docInputRef} accept=".pdf,.txt,.doc,.docx" onChange={handleDocSelect} className="hidden" />
             <button
               onClick={() => fileInputRef.current?.click()}
               className="p-2.5 text-gray-400 hover:text-primary-400 hover:bg-primary-50 rounded-xl transition-colors flex-shrink-0"
               title="Upload image"
             >
               <FiImage className="text-xl" />
+            </button>
+            <button
+              onClick={() => docInputRef.current?.click()}
+              className="p-2.5 text-gray-400 hover:text-primary-400 hover:bg-primary-50 rounded-xl transition-colors flex-shrink-0"
+              title="Upload file (PDF, TXT, DOC)"
+            >
+              <FiPaperclip className="text-xl" />
             </button>
             {SpeechRecognition && (
               <button
@@ -345,7 +398,7 @@ export default function ConceptExplainer() {
             />
             <button
               onClick={handleSend}
-              disabled={loading || (!input.trim() && !imageFile)}
+              disabled={loading || (!input.trim() && !imageFile && !docFile)}
               className="p-2.5 bg-primary-400 text-white rounded-xl hover:bg-primary-500 transition-colors disabled:opacity-40 flex-shrink-0"
             >
               <FiSend className="text-lg" />

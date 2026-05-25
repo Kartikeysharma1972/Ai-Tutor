@@ -20,7 +20,12 @@ const upload = multer({
   dest: 'uploads/',
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+    const allowed = [
+      'image/jpeg', 'image/png', 'image/webp',
+      'application/pdf', 'text/plain',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
     cb(null, allowed.includes(file.mimetype));
   },
 });
@@ -148,6 +153,72 @@ router.post('/concept-explainer/image', authMiddleware, upload.single('image'), 
   } catch (err) {
     console.error('Image explainer error:', err);
     if (req.file?.path) fs.unlinkSync(req.file.path);
+    res.status(500).json({ error: 'AI service error' });
+  }
+});
+
+// ---------- CONCEPT EXPLAINER WITH FILE ----------
+router.post('/concept-explainer/file', authMiddleware, upload.single('file'), async (req, res) => {
+  try {
+    const { message, sessionId, explanationLevel, subject, chapter } = req.body;
+    const user = await User.findById(req.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    let fileContent = '';
+    const mime = req.file.mimetype;
+
+    if (mime === 'application/pdf') {
+      const pdfParse = (await import('pdf-parse')).default;
+      const dataBuffer = fs.readFileSync(req.file.path);
+      const pdfData = await pdfParse(dataBuffer);
+      fileContent = pdfData.text;
+    } else if (mime === 'text/plain') {
+      fileContent = fs.readFileSync(req.file.path, 'utf-8');
+    } else if (mime === 'application/msword' || mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      fileContent = fs.readFileSync(req.file.path, 'utf-8');
+    } else {
+      fs.unlinkSync(req.file.path);
+      return res.status(400).json({ error: 'Unsupported file type. Please upload PDF, TXT, or DOC files.' });
+    }
+
+    fs.unlinkSync(req.file.path);
+
+    if (!fileContent.trim()) return res.status(400).json({ error: 'Could not extract text from the file' });
+
+    const systemPrompt = buildSystemPrompt(user.grade, 'concept-explainer', {
+      explanationLevel: explanationLevel || 'beginner',
+      subject, chapter,
+    });
+
+    const userContent = `The student has uploaded a document. Here is the extracted text from the file:\n\n---\n${fileContent.substring(0, 15000)}\n---\n\n${message || 'Please explain the concepts in this document.'}`;
+
+    let session;
+    if (sessionId) {
+      session = await Session.findOne({ _id: sessionId, userId: req.userId });
+    }
+    if (!session) {
+      session = new Session({
+        userId: req.userId,
+        tool: 'concept-explainer',
+        title: (message || `File: ${req.file.originalname}`).substring(0, 60),
+        messages: [],
+        metadata: { explanationLevel, subject, chapter },
+      });
+    }
+
+    session.messages.push({ role: 'user', content: `[File: ${req.file.originalname}] ${message || ''}` });
+
+    const allMessages = [...session.messages.slice(0, -1), { role: 'user', content: userContent }];
+    const aiResponse = await chatWithGroq(systemPrompt, allMessages);
+
+    session.messages.push({ role: 'assistant', content: aiResponse });
+    await session.save();
+
+    res.json({ response: aiResponse, sessionId: session._id });
+  } catch (err) {
+    console.error('File explainer error:', err);
+    if (req.file?.path) try { fs.unlinkSync(req.file.path); } catch {}
     res.status(500).json({ error: 'AI service error' });
   }
 });
