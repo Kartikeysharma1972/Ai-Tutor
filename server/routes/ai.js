@@ -37,7 +37,7 @@ async function chatWithGroq(systemPrompt, messages, options = {}) {
   ];
 
   const response = await getGroq().chat.completions.create({
-    model: options.model || 'llama-3.3-70b-versatile',
+    model: options.model || 'meta-llama/llama-4-scout-17b-16e-instruct',
     messages: formattedMessages,
     temperature: options.temperature ?? 0.7,
     max_tokens: options.maxTokens || 4096,
