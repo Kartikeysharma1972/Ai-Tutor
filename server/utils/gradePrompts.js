@@ -323,14 +323,6 @@ MATH RENDERING (LaTeX):
 - Use LaTeX for fractions, roots, powers, subscripts, Greek letters, chemical formulas etc.
 - Chemical equations: $\\text{Zn} + \\text{CuSO}_4 \\rightarrow \\text{ZnSO}_4 + \\text{Cu}$
 
-VISUAL IMAGE (optional):
-You may include ONE illustrative image using this exact format:
-![short description](https://image.pollinations.ai/prompt/DESCRIPTION_HERE?width=512&height=512&nologo=true)
-
-Rules: Replace spaces with %20. Keep prompt short (3-8 words). Add "educational illustration" at end.
-Example: ![water cycle](https://image.pollinations.ai/prompt/water%20cycle%20diagram%20educational%20illustration?width=512&height=512&nologo=true)
-
-Only include an image when it genuinely helps explain the concept (diagrams, processes, visual topics). Text-heavy topics like grammar or history do NOT need images.
 `;
 
   if (tool === 'concept-explainer') {

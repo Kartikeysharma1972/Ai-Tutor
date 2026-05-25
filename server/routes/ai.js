@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import Groq from 'groq-sdk';
+import Anthropic from '@anthropic-ai/sdk';
 import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
@@ -8,12 +9,21 @@ import User from '../models/User.js';
 import Session from '../models/Session.js';
 import TestAttempt from '../models/TestAttempt.js';
 import { buildSystemPrompt, getMockTestConfig, getExpectedTypes } from '../utils/gradePrompts.js';
+import { searchWikipediaImage, injectImage } from '../utils/imageSearch.js';
 
 const router = Router();
 let groq;
 function getGroq() {
   if (!groq) groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
   return groq;
+}
+
+let anthropic;
+function getAnthropic() {
+  if (!anthropic && process.env.ANTHROPIC_API_KEY) {
+    anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  }
+  return anthropic;
 }
 
 const upload = multer({
@@ -30,23 +40,6 @@ const upload = multer({
   },
 });
 
-function fixImageUrls(text) {
-  return text.replace(
-    /!\[([^\]]*)\]\(https?:\/\/image\.pollinations\.ai\/prompt\/([^)]*)\)/g,
-    (match, alt, prompt) => {
-      let cleanPrompt = prompt.replace(/[{}]/g, '');
-      if (!cleanPrompt.includes('width=')) {
-        cleanPrompt += (cleanPrompt.includes('?') ? '&' : '?') + 'width=512&height=512&nologo=true';
-      }
-      return `![${alt}](https://image.pollinations.ai/prompt/${cleanPrompt})`;
-    }
-  );
-}
-
-function ensureImages(text, topic, grade) {
-  return text;
-}
-
 async function chatWithGroq(systemPrompt, messages, options = {}) {
   const formattedMessages = [
     { role: 'system', content: systemPrompt },
@@ -62,6 +55,31 @@ async function chatWithGroq(systemPrompt, messages, options = {}) {
   });
 
   return response.choices[0]?.message?.content || '';
+}
+
+async function chatWithClaude(systemPrompt, messages, options = {}) {
+  const client = getAnthropic();
+  const formattedMessages = messages.map(m => ({
+    role: m.role,
+    content: m.content,
+  }));
+
+  const response = await client.messages.create({
+    model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6',
+    max_tokens: options.maxTokens || 4096,
+    system: systemPrompt,
+    messages: formattedMessages,
+    temperature: options.temperature ?? 0.7,
+  });
+
+  return response.content[0]?.text || '';
+}
+
+async function chatWithAI(systemPrompt, messages, options = {}) {
+  if (getAnthropic() && !options.jsonMode) {
+    return chatWithClaude(systemPrompt, messages, options);
+  }
+  return chatWithGroq(systemPrompt, messages, options);
 }
 
 async function chatWithGroqVision(systemPrompt, textContent, imageBase64, mimeType) {
@@ -112,14 +130,17 @@ router.post('/concept-explainer', authMiddleware, async (req, res) => {
 
     session.messages.push({ role: 'user', content: message });
 
-    let aiResponse = await chatWithGroq(systemPrompt, session.messages);
-    aiResponse = fixImageUrls(aiResponse);
-    aiResponse = ensureImages(aiResponse, message.substring(0, 50), user.grade);
+    const [aiResponse, imageData] = await Promise.all([
+      chatWithAI(systemPrompt, session.messages),
+      user.grade <= 8 ? searchWikipediaImage(message.substring(0, 80)) : Promise.resolve(null),
+    ]);
 
-    session.messages.push({ role: 'assistant', content: aiResponse });
+    const finalResponse = injectImage(aiResponse, imageData);
+
+    session.messages.push({ role: 'assistant', content: finalResponse });
     await session.save();
 
-    res.json({ response: aiResponse, sessionId: session._id });
+    res.json({ response: finalResponse, sessionId: session._id });
   } catch (err) {
     console.error('Concept explainer error:', err);
     res.status(500).json({ error: 'AI service error' });
@@ -142,13 +163,12 @@ router.post('/concept-explainer/image', authMiddleware, upload.single('image'), 
     const imageBase64 = imageBuffer.toString('base64');
     const mimeType = req.file.mimetype;
 
-    let aiResponse = await chatWithGroqVision(
+    const aiResponse = await chatWithGroqVision(
       systemPrompt,
       message || 'Explain what is shown in this image.',
       imageBase64,
       mimeType
     );
-    aiResponse = fixImageUrls(aiResponse);
 
     fs.unlinkSync(req.file.path);
 
@@ -230,9 +250,7 @@ router.post('/concept-explainer/file', authMiddleware, upload.single('file'), as
     session.messages.push({ role: 'user', content: `[File: ${req.file.originalname}] ${message || ''}` });
 
     const allMessages = [...session.messages.slice(0, -1), { role: 'user', content: userContent }];
-    let aiResponse = await chatWithGroq(systemPrompt, allMessages);
-    aiResponse = fixImageUrls(aiResponse);
-    aiResponse = ensureImages(aiResponse, (message || req.file.originalname).substring(0, 50), user.grade);
+    const aiResponse = await chatWithAI(systemPrompt, allMessages);
 
     session.messages.push({ role: 'assistant', content: aiResponse });
     await session.save();
@@ -286,7 +304,7 @@ router.post('/summarize', authMiddleware, upload.single('file'), async (req, res
       query,
     });
 
-    const aiResponse = await chatWithGroq(systemPrompt, [
+    const aiResponse = await chatWithAI(systemPrompt, [
       { role: 'user', content: `Document content:\n\n${content.substring(0, 15000)}\n\n${mode === 'search' ? `Question: ${query}` : `Provide a ${mode || 'full'} summary.`}` },
     ]);
 
@@ -326,7 +344,7 @@ router.post('/project-ideas', authMiddleware, async (req, res) => {
       subject, projectType, topic, count: 4,
     });
 
-    const aiResponse = await chatWithGroq(systemPrompt, [
+    const aiResponse = await chatWithAI(systemPrompt, [
       { role: 'user', content: `Generate project ideas for ${subject}${topic ? ` on topic: ${topic}` : ''}, project type: ${projectType || 'any'}` },
     ]);
 
@@ -489,7 +507,7 @@ router.post('/focus-area', authMiddleware, async (req, res) => {
 
     const systemPrompt = buildSystemPrompt(user.grade, 'focus-area', { subject, chapter, topic });
 
-    const aiResponse = await chatWithGroq(systemPrompt, [
+    const aiResponse = await chatWithAI(systemPrompt, [
       { role: 'user', content: `Provide complete focus area study material for: ${topic} (Chapter: ${chapter}, Subject: ${subject})` },
     ], { maxTokens: 8000 });
 

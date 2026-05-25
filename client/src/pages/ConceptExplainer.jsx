@@ -39,6 +39,7 @@ export default function ConceptExplainer() {
 
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
+  const initialLoadRef = useRef(true);
 
   useEffect(() => {
     if (user?.grade) {
@@ -54,6 +55,17 @@ export default function ConceptExplainer() {
       setChapters([]);
     }
   }, [subject, user?.grade]);
+
+  useEffect(() => {
+    if (initialLoadRef.current) {
+      initialLoadRef.current = false;
+      return;
+    }
+    if (!urlSessionId) {
+      setMessages([]);
+      setSessionId(null);
+    }
+  }, [subject]);
 
   useEffect(() => {
     if (urlSessionId) {
