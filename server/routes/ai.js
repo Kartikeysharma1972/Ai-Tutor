@@ -44,16 +44,7 @@ function fixImageUrls(text) {
 }
 
 function ensureImages(text, topic, grade) {
-  const hasImage = /!\[.*\]\(https:\/\/image\.pollinations\.ai/.test(text);
-  if (hasImage) return text;
-  const keyword = encodeURIComponent(`${topic} educational illustration ${grade <= 5 ? 'cartoon for kids' : 'diagram'}`);
-  const img = `\n\n![${topic}](https://image.pollinations.ai/prompt/${keyword}?width=512&height=512&nologo=true)\n`;
-  const firstHeadingEnd = text.indexOf('\n', text.indexOf('#'));
-  if (firstHeadingEnd > 0) {
-    const insertPoint = text.indexOf('\n', firstHeadingEnd + 1);
-    if (insertPoint > 0) return text.slice(0, insertPoint) + img + text.slice(insertPoint);
-  }
-  return text + img;
+  return text;
 }
 
 async function chatWithGroq(systemPrompt, messages, options = {}) {

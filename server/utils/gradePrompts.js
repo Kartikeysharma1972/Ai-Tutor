@@ -323,28 +323,14 @@ MATH RENDERING (LaTeX):
 - Use LaTeX for fractions, roots, powers, subscripts, Greek letters, chemical formulas etc.
 - Chemical equations: $\\text{Zn} + \\text{CuSO}_4 \\rightarrow \\text{ZnSO}_4 + \\text{Cu}$
 
-VISUAL IMAGES:
-You MUST include 1-3 illustrative images in your response using EXACTLY this markdown format:
+VISUAL IMAGE (optional):
+You may include ONE illustrative image using this exact format:
 ![short description](https://image.pollinations.ai/prompt/DESCRIPTION_HERE?width=512&height=512&nologo=true)
 
-Rules for DESCRIPTION_HERE:
-- Replace spaces with %20
-- Keep it simple, descriptive English: what the image should show
-- Add "educational illustration cartoon" at the end for clarity
-${gradeGroup === 'primary-lower' ? `
-For Class ${grade}, include 2-3 images. Examples of CORRECT usage:
-![apples on table](https://image.pollinations.ai/prompt/three%20red%20apples%20on%20a%20wooden%20table%20educational%20illustration%20cartoon?width=512&height=512&nologo=true)
-![puppy playing](https://image.pollinations.ai/prompt/cute%20puppy%20playing%20with%20ball%20educational%20illustration%20cartoon?width=512&height=512&nologo=true)`
-: gradeGroup === 'primary-upper' ? `
-For Class ${grade}, include 1-2 images. Examples of CORRECT usage:
-![water cycle](https://image.pollinations.ai/prompt/water%20cycle%20diagram%20for%20kids%20educational%20illustration%20cartoon?width=512&height=512&nologo=true)
-![plant parts](https://image.pollinations.ai/prompt/labeled%20parts%20of%20a%20plant%20educational%20illustration%20cartoon?width=512&height=512&nologo=true)`
-: `
-For Class ${grade}, include 1-2 images for diagrams or processes. Examples of CORRECT usage:
-![cell diagram](https://image.pollinations.ai/prompt/labeled%20plant%20cell%20diagram%20educational%20illustration?width=512&height=512&nologo=true)
-![circuit diagram](https://image.pollinations.ai/prompt/simple%20electric%20circuit%20diagram%20educational%20illustration?width=512&height=512&nologo=true)`}
+Rules: Replace spaces with %20. Keep prompt short (3-8 words). Add "educational illustration" at end.
+Example: ![water cycle](https://image.pollinations.ai/prompt/water%20cycle%20diagram%20educational%20illustration?width=512&height=512&nologo=true)
 
-Place images naturally within the explanation where they help understanding. This is MANDATORY — every response must have at least one image.
+Only include an image when it genuinely helps explain the concept (diagrams, processes, visual topics). Text-heavy topics like grammar or history do NOT need images.
 `;
 
   if (tool === 'concept-explainer') {
@@ -392,7 +378,7 @@ ${gradeGroup === 'primary-lower' ? `RESPONSE FORMAT FOR CLASS ${grade} (Young Ch
 4. **Easy Remember** — One simple line to remember the concept, like a rhyme or fun phrase.
 5. **Let's Practice!** — 3-4 simple practice questions using emojis with answers at the bottom.
 
-Keep it SHORT, FUN, and VISUAL. Use emojis everywhere. No complex words. Talk like a playful teacher.`
+Keep it SHORT, FUN, and VISUAL. Use a few emojis where helpful (not excessive). No complex words. Talk like a friendly teacher.`
 : gradeGroup === 'primary-upper' ? `RESPONSE FORMAT FOR CLASS ${grade}:
 1. **Simple Explanation** — Clear explanation using everyday analogies (sharing toys, cooking, playing). Keep sentences short and friendly.
 2. **Easy Example** — Show the concept with a relatable real-life example (rusting gate, burning candle, sharing chocolates).
