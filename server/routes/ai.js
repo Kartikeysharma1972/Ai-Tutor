@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import Groq from 'groq-sdk';
-import Anthropic from '@anthropic-ai/sdk';
 import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
@@ -15,14 +14,6 @@ let groq;
 function getGroq() {
   if (!groq) groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
   return groq;
-}
-
-let anthropic;
-function getAnthropic() {
-  if (!anthropic && process.env.ANTHROPIC_API_KEY) {
-    anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  }
-  return anthropic;
 }
 
 const upload = multer({
@@ -56,30 +47,6 @@ async function chatWithGroq(systemPrompt, messages, options = {}) {
   return response.choices[0]?.message?.content || '';
 }
 
-async function chatWithClaude(systemPrompt, messages, options = {}) {
-  const client = getAnthropic();
-  const formattedMessages = messages.map(m => ({
-    role: m.role,
-    content: m.content,
-  }));
-
-  const response = await client.messages.create({
-    model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6',
-    max_tokens: options.maxTokens || 4096,
-    system: systemPrompt,
-    messages: formattedMessages,
-    temperature: options.temperature ?? 0.7,
-  });
-
-  return response.content[0]?.text || '';
-}
-
-async function chatWithAI(systemPrompt, messages, options = {}) {
-  if (getAnthropic() && !options.jsonMode) {
-    return chatWithClaude(systemPrompt, messages, options);
-  }
-  return chatWithGroq(systemPrompt, messages, options);
-}
 
 async function chatWithGroqVision(systemPrompt, textContent, imageBase64, mimeType) {
   const response = await getGroq().chat.completions.create({
@@ -129,7 +96,7 @@ router.post('/concept-explainer', authMiddleware, async (req, res) => {
 
     session.messages.push({ role: 'user', content: message });
 
-    const aiResponse = await chatWithAI(systemPrompt, session.messages);
+    const aiResponse = await chatWithGroq(systemPrompt, session.messages);
 
     session.messages.push({ role: 'assistant', content: aiResponse });
     await session.save();
@@ -244,7 +211,7 @@ router.post('/concept-explainer/file', authMiddleware, upload.single('file'), as
     session.messages.push({ role: 'user', content: `[File: ${req.file.originalname}] ${message || ''}` });
 
     const allMessages = [...session.messages.slice(0, -1), { role: 'user', content: userContent }];
-    const aiResponse = await chatWithAI(systemPrompt, allMessages);
+    const aiResponse = await chatWithGroq(systemPrompt, allMessages);
 
     session.messages.push({ role: 'assistant', content: aiResponse });
     await session.save();
@@ -298,7 +265,7 @@ router.post('/summarize', authMiddleware, upload.single('file'), async (req, res
       query,
     });
 
-    const aiResponse = await chatWithAI(systemPrompt, [
+    const aiResponse = await chatWithGroq(systemPrompt, [
       { role: 'user', content: `Document content:\n\n${content.substring(0, 15000)}\n\n${mode === 'search' ? `Question: ${query}` : `Provide a ${mode || 'full'} summary.`}` },
     ]);
 
@@ -338,7 +305,7 @@ router.post('/project-ideas', authMiddleware, async (req, res) => {
       subject, projectType, topic, count: 4,
     });
 
-    const aiResponse = await chatWithAI(systemPrompt, [
+    const aiResponse = await chatWithGroq(systemPrompt, [
       { role: 'user', content: `Generate project ideas for ${subject}${topic ? ` on topic: ${topic}` : ''}, project type: ${projectType || 'any'}` },
     ]);
 
@@ -501,7 +468,7 @@ router.post('/focus-area', authMiddleware, async (req, res) => {
 
     const systemPrompt = buildSystemPrompt(user.grade, 'focus-area', { subject, chapter, topic });
 
-    const aiResponse = await chatWithAI(systemPrompt, [
+    const aiResponse = await chatWithGroq(systemPrompt, [
       { role: 'user', content: `Provide complete focus area study material for: ${topic} (Chapter: ${chapter}, Subject: ${subject})` },
     ], { maxTokens: 8000 });
 
