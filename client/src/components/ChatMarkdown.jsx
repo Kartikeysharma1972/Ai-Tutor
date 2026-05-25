@@ -1,8 +1,37 @@
+import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
+
+function ImageWithLoader({ src, alt }) {
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
+
+  if (error) return null;
+
+  return (
+    <div className="my-3">
+      {!loaded && (
+        <div className="w-full h-48 bg-gray-100 rounded-xl animate-pulse flex items-center justify-center">
+          <span className="text-xs text-gray-400">Loading image...</span>
+        </div>
+      )}
+      <img
+        src={src}
+        alt={alt || 'illustration'}
+        className={`rounded-xl max-w-full max-h-72 object-contain border border-gray-200 shadow-sm ${loaded ? '' : 'hidden'}`}
+        loading="lazy"
+        onLoad={() => setLoaded(true)}
+        onError={() => setError(true)}
+      />
+      {loaded && alt && (
+        <p className="text-xs text-gray-400 mt-1 text-center italic">{alt}</p>
+      )}
+    </div>
+  );
+}
 
 export default function ChatMarkdown({ content }) {
   return (
@@ -11,15 +40,7 @@ export default function ChatMarkdown({ content }) {
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex]}
         components={{
-          img: ({ src, alt }) => (
-            <img
-              src={src}
-              alt={alt || 'illustration'}
-              className="rounded-lg my-3 max-w-full max-h-64 object-contain border border-gray-100"
-              loading="lazy"
-              onError={(e) => { e.target.style.display = 'none'; }}
-            />
-          ),
+          img: ({ src, alt }) => <ImageWithLoader src={src} alt={alt} />,
         }}
       >
         {content}

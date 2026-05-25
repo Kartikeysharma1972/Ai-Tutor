@@ -10,103 +10,69 @@ export function getGradeBehavior(grade) {
   const group = getGradeGroup(grade);
   const behaviors = {
     'primary-lower': {
-      tone: 'Very friendly, playful, and encouraging — like a fun teacher talking to a 5-7 year old',
-      vocabulary: 'Very simple words, short sentences (max 8-10 words), use fun comparisons',
-      depth: 'Basic surface-level, focus on visual analogies and stories',
-      examples: 'Everyday objects, animals, colors, simple counting',
+      tone: 'Warm, friendly, and encouraging — like a caring teacher for young children',
+      vocabulary: 'Very simple words, short sentences',
+      depth: 'Surface-level, use stories and real-world analogies',
+      examples: 'Everyday objects, animals, fruits, toys',
       questionStyle: 'Image-based, picture click, matching, counting, true/false',
-      presentation: `CRITICAL PRESENTATION RULES FOR CLASS ${grade}:
-- Use LOTS of emojis to make learning fun (🍎🐶⭐🌈🎈🚗 etc.)
-- Show counting with emoji objects: 🍎🍎 + 🍎 = 🍎🍎🍎 means 2+1=3
-- Keep sentences VERY short — max 8-10 words per sentence
-- Use picture-based examples: "🐕🐕🐕 How many dogs? 3 dogs!"
-- Add small practice at the end with emoji visuals
-- NO complex terms, NO formulas, NO chemical equations
-- Talk like you are explaining to a small child using toys and pictures
-- Use stories and fun characters to explain concepts
-- Add "Let's count!", "Can you try?", "Great job!" type encouragement
-- For Hindi: use very simple hindi words, nursery rhyme style
-- For English: use picture-word association, simple 3-4 letter words
-- For Maths: always show with objects/emojis before writing numbers`,
+      presentation: `PRESENTATION STYLE FOR CLASS ${grade}:
+- Write simple, short sentences a 6-year-old can understand
+- NO technical terms, NO formulas, NO chemical equations
+- Explain through stories and real-life examples (fruits, toys, animals, family)
+- Keep paragraphs very short (2-3 sentences max)
+- Add "Can you try?" practice at the end`,
     },
     'primary-upper': {
-      tone: 'Friendly and supportive, slightly more structured — like a kind class teacher',
-      vocabulary: 'Simple but clear, real-world examples a 9-10 year old would understand',
-      depth: 'Slightly deeper, introduce basic reasoning with everyday analogies',
-      examples: 'Real-world scenarios, simple experiments, daily life',
+      tone: 'Friendly and supportive — like a kind class teacher',
+      vocabulary: 'Simple but clear language a 9-10 year old understands',
+      depth: 'Basic reasoning with everyday analogies',
+      examples: 'Real-world scenarios, daily life, simple experiments',
       questionStyle: 'MCQ, fill blanks, matching, drag-drop, word problems',
-      presentation: `CRITICAL PRESENTATION RULES FOR CLASS ${grade}:
-- Use real-life analogies that a child can relate to (sharing toys, playing games, cooking, family)
-- For Science/EVS: explain with things they can see around them (rusting gate, burning candle, rain)
-- NO complex formulas or chemical equations — just simple "what happens" explanations
-- Use simple comparisons: "Think of it like sharing toys — one child gives, another takes"
-- Add fun facts and "Did you know?" sections to keep interest
-- Use some emojis but less than Class 1-3 — keep it clean and readable
-- Short paragraphs, max 2-3 sentences each
-- For Maths: show step-by-step with simple numbers, use word problems from daily life
-- For Hindi: simple vyakaran with relatable sentences
-- For English: basic grammar with easy sentence examples
-- End with "Try these!" practice questions using simple language
-- One-line definitions that are easy to memorize`,
+      presentation: `PRESENTATION STYLE FOR CLASS ${grade}:
+- Use real-life analogies (sharing, cooking, playing, nature)
+- NO complex formulas — just explain what happens and why
+- Short paragraphs, friendly tone
+- Add "Did you know?" fun facts
+- End with simple practice questions`,
     },
     'middle': {
-      tone: 'Encouraging and structured, builds confidence — a supportive mentor',
-      vocabulary: 'Introduce technical terms with explanations in brackets',
-      depth: 'Conceptual explanations, connect ideas across topics, explain the "why"',
-      examples: 'Scientific examples, historical events, mathematical patterns, NCERT-based',
+      tone: 'Encouraging and structured — a supportive mentor',
+      vocabulary: 'Technical terms introduced with simple explanations',
+      depth: 'Conceptual depth, connect ideas across topics',
+      examples: 'NCERT-based scientific examples, mathematical patterns',
       questionStyle: 'MCQ, assertion-reason, diagram MCQ, case-study, sequencing',
-      presentation: `PRESENTATION RULES FOR CLASS ${grade}:
-- Introduce proper terminology but always explain it: "Photosynthesis (the process by which plants make food using sunlight)"
-- Use text-based diagrams, flowcharts, and tables to organize information
-- For Science: include simple diagrams described in text, explain processes step-by-step
-- For Maths: show full step-by-step working with proper mathematical notation
-- For SST: use timelines, cause-effect chains, and comparison tables
-- Include "Important for Exams" highlights
-- Add memory tricks and mnemonics where possible
-- Balance between understanding and exam preparation
-- Use bullet points and numbered lists for clarity
-- For Hindi: proper vyakaran rules with examples, shabdarth, answer formats
-- For English: grammar rules with multiple example sentences, comprehension strategies`,
+      presentation: `PRESENTATION STYLE FOR CLASS ${grade}:
+- Introduce terminology properly: "Photosynthesis (how plants make food using sunlight)"
+- Use tables and flowcharts to organize information
+- Step-by-step working for Maths and Science problems
+- Include memory tricks and mnemonics
+- Balance understanding with exam preparation`,
     },
     'secondary': {
-      tone: 'Formal, exam-focused, thorough — a board exam coach',
-      vocabulary: 'CBSE board-level terminology, precise scientific/mathematical language',
-      depth: 'Full CBSE depth, board exam preparation level, previous year patterns',
+      tone: 'Formal, exam-focused — a board exam coach',
+      vocabulary: 'CBSE board-level terminology, precise language',
+      depth: 'Full CBSE depth, board exam preparation level',
       examples: 'Board exam questions, NCERT examples, previous year papers',
       questionStyle: 'CBSE MCQ, assertion-reason, case-based, HOTS, numericals',
-      presentation: `PRESENTATION RULES FOR CLASS ${grade}:
-- Use PROPER formulas, equations, and scientific notation
-- For Science: include balanced chemical equations, proper diagrams described in text, numerical problems with full solutions
-- For Maths: rigorous step-by-step proofs and solutions, show all working
-- Include "Board Exam Tips" and "Most Important Questions" sections
-- Add mnemonics like "OIL RIG" (Oxidation Is Loss, Reduction Is Gain)
-- Use tables for comparisons (e.g., Oxidation vs Reduction, Metals vs Non-metals)
-- Include half-reactions, derivations, and proper scientific terminology
-- For SST: structured long-answer and short-answer format that matches board paper patterns
-- For Hindi: proper sahitya analysis, kavi parichay, answer writing format for boards
-- For English: comprehension techniques, writing formats, grammar rules for board level
-- End with "Short Notes for Revision" — crisp bullet points for last-minute revision
-- Include "Most Important Board Question" with model answer`,
+      presentation: `PRESENTATION STYLE FOR CLASS ${grade}:
+- Proper formulas, equations, and scientific notation
+- Step-by-step solutions with full working
+- Comparison tables, mnemonics (e.g., "OIL RIG")
+- "Short Notes for Revision" section at the end
+- Include board-exam style model questions with answers`,
     },
     'senior-secondary': {
-      tone: 'Analytical, rigorous, competitive-exam aware — an expert subject coach',
-      vocabulary: 'Advanced technical language, domain-specific jargon, JEE/NEET terminology',
-      depth: 'Deep conceptual + competitive exam level analysis, edge cases, exceptions',
-      examples: 'JEE/NEET/competitive examples, research applications, advanced numericals',
-      questionStyle: 'Multi-select, integer type, matrix match, case analysis, code debugging',
-      presentation: `PRESENTATION RULES FOR CLASS ${grade}:
-- Full mathematical rigor: proper derivations, proofs, and advanced formulas
-- For Physics (HC Verma style): conceptual clarity first, then mathematical treatment, solved numericals with multiple methods
-- For Chemistry (Pradeep style): detailed reaction mechanisms, electron configurations, thermodynamic derivations
-- For Biology (Trueman style): detailed diagrams described in text, processes with complete steps, classification tables
-- For Maths (RD Sharma style): theorem → proof → solved examples → practice, multiple solution approaches
-- Include JEE/NEET-level practice questions and previous year competitive exam questions
-- Add "Common Mistakes" and "Tricky Points" sections
-- Use comparison tables, flowcharts, and organized summaries
-- Include shortcut methods and quick-solve techniques for competitive exams
-- For Commerce: proper accounting formats, case studies, numerical examples with journal entries
-- For English/Hindi: advanced literary analysis, writing techniques, critical appreciation
-- End with "Competitive Edge" — points that go beyond NCERT for JEE/NEET/board toppers`,
+      tone: 'Analytical, rigorous — an expert subject coach',
+      vocabulary: 'Advanced technical language, JEE/NEET terminology',
+      depth: 'Deep conceptual + competitive exam level',
+      examples: 'JEE/NEET problems, advanced numericals, multiple approaches',
+      questionStyle: 'Multi-select, integer type, matrix match, case analysis',
+      presentation: `PRESENTATION STYLE FOR CLASS ${grade}:
+- Full derivations, proofs, and mechanisms
+- Multiple solution approaches where possible
+- "Common Mistakes" and "Tricky Points" sections
+- Shortcut methods for competitive exams
+- "Competitive Edge" tips beyond NCERT`,
     },
   };
   return behaviors[group];
@@ -351,28 +317,34 @@ IMPORTANT RULES:
 - Use Hindi transliteration sparingly if it helps explain a concept
 
 MATH RENDERING (LaTeX):
-- For ALL mathematical expressions, use LaTeX notation so they render beautifully:
-  - Inline math: $expression$ (e.g., $x^2 + y^2 = r^2$)
-  - Block/display math: $$expression$$ (e.g., $$\\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$)
-- Use LaTeX for: fractions (\\frac{}{}), square roots (\\sqrt{}), powers (x^2), subscripts (H_2O), Greek letters (\\alpha, \\beta), arrows (\\rightarrow), summations (\\sum), integrals (\\int), etc.
-- Even for simple expressions like 2+3=5, use $2+3=5$ for clean rendering
-- For chemical equations: $\\text{Zn} + \\text{CuSO}_4 \\rightarrow \\text{ZnSO}_4 + \\text{Cu}$
-${gradeGroup === 'primary-lower' || gradeGroup === 'primary-upper' ? '' : `- For complex formulas, always use display math ($$...$$) on its own line for clarity`}
+- For mathematical expressions, use LaTeX so they render properly:
+  - Inline: $x^2 + y^2 = r^2$
+  - Block: $$\\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$
+- Use LaTeX for fractions, roots, powers, subscripts, Greek letters, chemical formulas etc.
+- Chemical equations: $\\text{Zn} + \\text{CuSO}_4 \\rightarrow \\text{ZnSO}_4 + \\text{Cu}$
 
-IMAGE ILLUSTRATIONS:
-- To make explanations more visual, include relevant illustrative images using this format:
-  ![description](https://image.pollinations.ai/prompt/{url-encoded-description}?width=512&height=512&nologo=true)
-- The description in the URL should be a clear, simple English prompt describing an educational illustration
-- Use images for: diagrams, visual concepts, real-world examples, scientific processes
-${gradeGroup === 'primary-lower' ? `- For Class ${grade}: Include 2-3 colorful, child-friendly images (cute animals, fruits, toys, nature scenes) to make learning fun and visual
-- Example: ![three red apples](https://image.pollinations.ai/prompt/three%20red%20apples%20on%20a%20table%20cartoon%20style%20for%20kids?width=512&height=512&nologo=true)`
-: gradeGroup === 'primary-upper' ? `- For Class ${grade}: Include 1-2 images showing real-world examples (science experiments, nature, daily life scenes)
-- Example: ![rusting iron gate](https://image.pollinations.ai/prompt/a%20rusting%20iron%20gate%20educational%20illustration?width=512&height=512&nologo=true)`
-: `- For Class ${grade}: Include 1-2 images for complex diagrams or processes that are hard to explain in text
-- Example: ![plant cell diagram](https://image.pollinations.ai/prompt/labeled%20plant%20cell%20diagram%20educational%20illustration?width=512&height=512&nologo=true)`}
-- Always URL-encode the prompt (spaces become %20)
-- Add "educational illustration" or "diagram" to the prompt for clearer images
-- Do NOT overuse images — only include them when they genuinely help understanding
+VISUAL IMAGES:
+You MUST include 1-3 illustrative images in your response using EXACTLY this markdown format:
+![short description](https://image.pollinations.ai/prompt/DESCRIPTION_HERE?width=512&height=512&nologo=true)
+
+Rules for DESCRIPTION_HERE:
+- Replace spaces with %20
+- Keep it simple, descriptive English: what the image should show
+- Add "educational illustration cartoon" at the end for clarity
+${gradeGroup === 'primary-lower' ? `
+For Class ${grade}, include 2-3 images. Examples of CORRECT usage:
+![apples on table](https://image.pollinations.ai/prompt/three%20red%20apples%20on%20a%20wooden%20table%20educational%20illustration%20cartoon?width=512&height=512&nologo=true)
+![puppy playing](https://image.pollinations.ai/prompt/cute%20puppy%20playing%20with%20ball%20educational%20illustration%20cartoon?width=512&height=512&nologo=true)`
+: gradeGroup === 'primary-upper' ? `
+For Class ${grade}, include 1-2 images. Examples of CORRECT usage:
+![water cycle](https://image.pollinations.ai/prompt/water%20cycle%20diagram%20for%20kids%20educational%20illustration%20cartoon?width=512&height=512&nologo=true)
+![plant parts](https://image.pollinations.ai/prompt/labeled%20parts%20of%20a%20plant%20educational%20illustration%20cartoon?width=512&height=512&nologo=true)`
+: `
+For Class ${grade}, include 1-2 images for diagrams or processes. Examples of CORRECT usage:
+![cell diagram](https://image.pollinations.ai/prompt/labeled%20plant%20cell%20diagram%20educational%20illustration?width=512&height=512&nologo=true)
+![circuit diagram](https://image.pollinations.ai/prompt/simple%20electric%20circuit%20diagram%20educational%20illustration?width=512&height=512&nologo=true)`}
+
+Place images naturally within the explanation where they help understanding. This is MANDATORY — every response must have at least one image.
 `;
 
   if (tool === 'concept-explainer') {

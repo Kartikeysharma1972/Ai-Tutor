@@ -30,6 +30,32 @@ const upload = multer({
   },
 });
 
+function fixImageUrls(text) {
+  return text.replace(
+    /!\[([^\]]*)\]\(https?:\/\/image\.pollinations\.ai\/prompt\/([^)]*)\)/g,
+    (match, alt, prompt) => {
+      let cleanPrompt = prompt.replace(/[{}]/g, '');
+      if (!cleanPrompt.includes('width=')) {
+        cleanPrompt += (cleanPrompt.includes('?') ? '&' : '?') + 'width=512&height=512&nologo=true';
+      }
+      return `![${alt}](https://image.pollinations.ai/prompt/${cleanPrompt})`;
+    }
+  );
+}
+
+function ensureImages(text, topic, grade) {
+  const hasImage = /!\[.*\]\(https:\/\/image\.pollinations\.ai/.test(text);
+  if (hasImage) return text;
+  const keyword = encodeURIComponent(`${topic} educational illustration ${grade <= 5 ? 'cartoon for kids' : 'diagram'}`);
+  const img = `\n\n![${topic}](https://image.pollinations.ai/prompt/${keyword}?width=512&height=512&nologo=true)\n`;
+  const firstHeadingEnd = text.indexOf('\n', text.indexOf('#'));
+  if (firstHeadingEnd > 0) {
+    const insertPoint = text.indexOf('\n', firstHeadingEnd + 1);
+    if (insertPoint > 0) return text.slice(0, insertPoint) + img + text.slice(insertPoint);
+  }
+  return text + img;
+}
+
 async function chatWithGroq(systemPrompt, messages, options = {}) {
   const formattedMessages = [
     { role: 'system', content: systemPrompt },
@@ -95,7 +121,9 @@ router.post('/concept-explainer', authMiddleware, async (req, res) => {
 
     session.messages.push({ role: 'user', content: message });
 
-    const aiResponse = await chatWithGroq(systemPrompt, session.messages);
+    let aiResponse = await chatWithGroq(systemPrompt, session.messages);
+    aiResponse = fixImageUrls(aiResponse);
+    aiResponse = ensureImages(aiResponse, message.substring(0, 50), user.grade);
 
     session.messages.push({ role: 'assistant', content: aiResponse });
     await session.save();
@@ -123,12 +151,13 @@ router.post('/concept-explainer/image', authMiddleware, upload.single('image'), 
     const imageBase64 = imageBuffer.toString('base64');
     const mimeType = req.file.mimetype;
 
-    const aiResponse = await chatWithGroqVision(
+    let aiResponse = await chatWithGroqVision(
       systemPrompt,
       message || 'Explain what is shown in this image.',
       imageBase64,
       mimeType
     );
+    aiResponse = fixImageUrls(aiResponse);
 
     fs.unlinkSync(req.file.path);
 
@@ -210,7 +239,9 @@ router.post('/concept-explainer/file', authMiddleware, upload.single('file'), as
     session.messages.push({ role: 'user', content: `[File: ${req.file.originalname}] ${message || ''}` });
 
     const allMessages = [...session.messages.slice(0, -1), { role: 'user', content: userContent }];
-    const aiResponse = await chatWithGroq(systemPrompt, allMessages);
+    let aiResponse = await chatWithGroq(systemPrompt, allMessages);
+    aiResponse = fixImageUrls(aiResponse);
+    aiResponse = ensureImages(aiResponse, (message || req.file.originalname).substring(0, 50), user.grade);
 
     session.messages.push({ role: 'assistant', content: aiResponse });
     await session.save();
