@@ -9,7 +9,6 @@ import User from '../models/User.js';
 import Session from '../models/Session.js';
 import TestAttempt from '../models/TestAttempt.js';
 import { buildSystemPrompt, getMockTestConfig, getExpectedTypes } from '../utils/gradePrompts.js';
-import { searchWikipediaImage, injectImage } from '../utils/imageSearch.js';
 
 const router = Router();
 let groq;
@@ -130,17 +129,12 @@ router.post('/concept-explainer', authMiddleware, async (req, res) => {
 
     session.messages.push({ role: 'user', content: message });
 
-    const [aiResponse, imageData] = await Promise.all([
-      chatWithAI(systemPrompt, session.messages),
-      user.grade <= 8 ? searchWikipediaImage(message.substring(0, 80)) : Promise.resolve(null),
-    ]);
+    const aiResponse = await chatWithAI(systemPrompt, session.messages);
 
-    const finalResponse = injectImage(aiResponse, imageData);
-
-    session.messages.push({ role: 'assistant', content: finalResponse });
+    session.messages.push({ role: 'assistant', content: aiResponse });
     await session.save();
 
-    res.json({ response: finalResponse, sessionId: session._id });
+    res.json({ response: aiResponse, sessionId: session._id });
   } catch (err) {
     console.error('Concept explainer error:', err);
     res.status(500).json({ error: 'AI service error' });

@@ -14,6 +14,22 @@ const levels = [
   { key: 'advanced', label: 'Advanced', desc: 'Competitive level' },
 ];
 
+async function fetchWikipediaImage(query) {
+  try {
+    const q = encodeURIComponent(query.substring(0, 80).trim());
+    const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${q}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.thumbnail?.source) {
+        return { url: data.thumbnail.source.replace(/\/\d+px-/, '/500px-'), alt: data.title };
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 const SpeechRecognition = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
 
 export default function ConceptExplainer() {
@@ -196,7 +212,23 @@ export default function ConceptExplainer() {
       }
 
       setSessionId(response.data.sessionId);
-      setMessages(prev => [...prev, { role: 'assistant', content: response.data.response }]);
+      const aiText = response.data.response;
+      setMessages(prev => [...prev, { role: 'assistant', content: aiText }]);
+
+      if (user?.grade <= 8 && userMessage) {
+        fetchWikipediaImage(userMessage).then(img => {
+          if (img) {
+            const imgMd = `\n\n![${img.alt}](${img.url})\n`;
+            setMessages(prev => {
+              const last = prev[prev.length - 1];
+              if (last?.role === 'assistant' && last.content === aiText) {
+                return [...prev.slice(0, -1), { ...last, content: last.content + imgMd }];
+              }
+              return prev;
+            });
+          }
+        });
+      }
     } catch (err) {
       toast.error('Failed to get response');
       setMessages(prev => prev.slice(0, -1));
