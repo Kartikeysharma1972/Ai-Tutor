@@ -2,9 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FiSend, FiImage, FiX, FiMic, FiMicOff, FiBook, FiChevronDown, FiPaperclip } from 'react-icons/fi';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import AppLayout from '../components/AppLayout';
+import ChatMarkdown from '../components/ChatMarkdown';
 import { useAuth } from '../contexts/AuthContext';
 import { aiAPI, sessionAPI, curriculumAPI } from '../utils/api';
 import toast from 'react-hot-toast';
@@ -293,9 +292,7 @@ export default function ConceptExplainer() {
                   : 'bg-white border border-gray-100 shadow-sm rounded-bl-md'
               }`}>
                 {msg.role === 'assistant' ? (
-                  <div className="chat-markdown text-sm text-gray-700">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
-                  </div>
+                  <ChatMarkdown content={msg.content} />
                 ) : (
                   <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                 )}

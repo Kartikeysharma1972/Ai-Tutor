@@ -349,6 +349,30 @@ IMPORTANT RULES:
 - Follow NCERT/CBSE syllabus scope strictly
 - Be encouraging and supportive
 - Use Hindi transliteration sparingly if it helps explain a concept
+
+MATH RENDERING (LaTeX):
+- For ALL mathematical expressions, use LaTeX notation so they render beautifully:
+  - Inline math: $expression$ (e.g., $x^2 + y^2 = r^2$)
+  - Block/display math: $$expression$$ (e.g., $$\\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$)
+- Use LaTeX for: fractions (\\frac{}{}), square roots (\\sqrt{}), powers (x^2), subscripts (H_2O), Greek letters (\\alpha, \\beta), arrows (\\rightarrow), summations (\\sum), integrals (\\int), etc.
+- Even for simple expressions like 2+3=5, use $2+3=5$ for clean rendering
+- For chemical equations: $\\text{Zn} + \\text{CuSO}_4 \\rightarrow \\text{ZnSO}_4 + \\text{Cu}$
+${gradeGroup === 'primary-lower' || gradeGroup === 'primary-upper' ? '' : `- For complex formulas, always use display math ($$...$$) on its own line for clarity`}
+
+IMAGE ILLUSTRATIONS:
+- To make explanations more visual, include relevant illustrative images using this format:
+  ![description](https://image.pollinations.ai/prompt/{url-encoded-description}?width=512&height=512&nologo=true)
+- The description in the URL should be a clear, simple English prompt describing an educational illustration
+- Use images for: diagrams, visual concepts, real-world examples, scientific processes
+${gradeGroup === 'primary-lower' ? `- For Class ${grade}: Include 2-3 colorful, child-friendly images (cute animals, fruits, toys, nature scenes) to make learning fun and visual
+- Example: ![three red apples](https://image.pollinations.ai/prompt/three%20red%20apples%20on%20a%20table%20cartoon%20style%20for%20kids?width=512&height=512&nologo=true)`
+: gradeGroup === 'primary-upper' ? `- For Class ${grade}: Include 1-2 images showing real-world examples (science experiments, nature, daily life scenes)
+- Example: ![rusting iron gate](https://image.pollinations.ai/prompt/a%20rusting%20iron%20gate%20educational%20illustration?width=512&height=512&nologo=true)`
+: `- For Class ${grade}: Include 1-2 images for complex diagrams or processes that are hard to explain in text
+- Example: ![plant cell diagram](https://image.pollinations.ai/prompt/labeled%20plant%20cell%20diagram%20educational%20illustration?width=512&height=512&nologo=true)`}
+- Always URL-encode the prompt (spaces become %20)
+- Add "educational illustration" or "diagram" to the prompt for clearer images
+- Do NOT overuse images — only include them when they genuinely help understanding
 `;
 
   if (tool === 'concept-explainer') {

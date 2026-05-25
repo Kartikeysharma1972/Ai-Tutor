@@ -2,9 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FiCheckCircle, FiXCircle, FiChevronDown, FiChevronUp, FiArrowLeft, FiDownload, FiClock, FiAward, FiTrendingUp, FiStar } from 'react-icons/fi';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import AppLayout from '../components/AppLayout';
+import ChatMarkdown from '../components/ChatMarkdown';
 import { useAuth } from '../contexts/AuthContext';
 import { sessionAPI } from '../utils/api';
 import toast from 'react-hot-toast';
@@ -295,13 +294,13 @@ export default function TestResult() {
                         {q.explanation && (
                           <div className="bg-blue-50 rounded-xl p-3">
                             <strong className="text-blue-700 text-xs">Explanation:</strong>
-                            <div className="chat-markdown text-gray-600 mt-1"><ReactMarkdown remarkPlugins={[remarkGfm]}>{q.explanation}</ReactMarkdown></div>
+                            <div className="mt-1"><ChatMarkdown content={q.explanation} /></div>
                           </div>
                         )}
                         {q.studyNotes && (
                           <div className="bg-gray-50 rounded-xl p-3">
                             <strong className="text-gray-500 text-xs">Study Notes:</strong>
-                            <div className="chat-markdown text-gray-600 mt-1"><ReactMarkdown remarkPlugins={[remarkGfm]}>{q.studyNotes}</ReactMarkdown></div>
+                            <div className="mt-1"><ChatMarkdown content={q.studyNotes} /></div>
                           </div>
                         )}
                       </div>

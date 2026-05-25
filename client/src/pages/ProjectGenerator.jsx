@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiRefreshCw } from 'react-icons/fi';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import AppLayout from '../components/AppLayout';
+import ChatMarkdown from '../components/ChatMarkdown';
 import { useAuth } from '../contexts/AuthContext';
 import { aiAPI, curriculumAPI } from '../utils/api';
 import toast from 'react-hot-toast';
@@ -96,8 +95,8 @@ export default function ProjectGenerator() {
                   <FiRefreshCw className={loading ? 'animate-spin' : ''} /> Regenerate
                 </button>
               </div>
-              <div className="chat-markdown text-sm text-gray-600">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{result}</ReactMarkdown>
+              <div>
+                <ChatMarkdown content={result} />
               </div>
             </motion.div>
           )}

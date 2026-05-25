@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { FiDownload, FiEye, FiEyeOff, FiBookOpen, FiMap, FiHelpCircle, FiEdit3 } from 'react-icons/fi';
 import AppLayout from '../components/AppLayout';
+import ChatMarkdown from '../components/ChatMarkdown';
 import { useAuth } from '../contexts/AuthContext';
 import { aiAPI, curriculumAPI } from '../utils/api';
 import toast from 'react-hot-toast';
@@ -71,9 +70,7 @@ function PracticeCard({ card, index }) {
       className="bg-white border border-gray-100 rounded-xl overflow-hidden"
     >
       <div className="p-4">
-        <div className="chat-markdown text-sm text-gray-700 leading-relaxed">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{card.question}</ReactMarkdown>
-        </div>
+        <ChatMarkdown content={card.question} />
       </div>
       {card.answer && (
         <>
@@ -89,8 +86,8 @@ function PracticeCard({ card, index }) {
               animate={{ opacity: 1, height: 'auto' }}
               className="px-4 pb-4 bg-green-50 border-t border-green-100"
             >
-              <div className="pt-3 chat-markdown text-sm text-gray-600 leading-relaxed">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{card.answer}</ReactMarkdown>
+              <div className="pt-3">
+                <ChatMarkdown content={card.answer} />
               </div>
             </motion.div>
           )}
@@ -247,16 +244,10 @@ export default function FocusArea() {
                       ))}
                     </div>
                   ) : (
-                    <div className="chat-markdown text-sm text-gray-600 leading-relaxed">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{sections.practice || 'No practice questions available.'}</ReactMarkdown>
-                    </div>
+                    <ChatMarkdown content={sections.practice || 'No practice questions available.'} />
                   )
                 ) : (
-                  <div className="chat-markdown text-sm text-gray-600 leading-relaxed">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {sections[activeTab] || 'Content not available for this section.'}
-                    </ReactMarkdown>
-                  </div>
+                  <ChatMarkdown content={sections[activeTab] || 'Content not available for this section.'} />
                 )}
               </div>
             </motion.div>

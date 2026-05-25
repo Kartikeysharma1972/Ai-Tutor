@@ -2,9 +2,8 @@ import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { FiUploadCloud, FiFileText, FiSearch, FiList, FiAlignLeft } from 'react-icons/fi';
 import { useDropzone } from 'react-dropzone';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import AppLayout from '../components/AppLayout';
+import ChatMarkdown from '../components/ChatMarkdown';
 import { aiAPI } from '../utils/api';
 import toast from 'react-hot-toast';
 
@@ -155,8 +154,8 @@ export default function DocumentSummarizer() {
               <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
                 <FiFileText className="text-primary-400" /> Summary
               </h3>
-              <div className="chat-markdown text-sm text-gray-600">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{result}</ReactMarkdown>
+              <div>
+                <ChatMarkdown content={result} />
               </div>
             </motion.div>
           )}
