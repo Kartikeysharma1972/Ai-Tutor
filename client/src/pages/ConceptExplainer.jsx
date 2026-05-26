@@ -14,9 +14,9 @@ const levels = [
   { key: 'advanced', label: 'Advanced', desc: 'Competitive level' },
 ];
 
-async function fetchImage(query) {
+async function fetchImage(query, subject) {
   try {
-    const res = await aiAPI.searchImage(query.substring(0, 100).trim());
+    const res = await aiAPI.searchImage(query.substring(0, 100).trim(), subject || '');
     return res.data.image || null;
   } catch {
     return null;
@@ -209,8 +209,8 @@ export default function ConceptExplainer() {
       setMessages(prev => [...prev, { role: 'assistant', content: aiText }]);
 
       if (userMessage) {
-        const searchQuery = chapter ? `${chapter} ${subject || ''}` : userMessage;
-        fetchImage(searchQuery).then(img => {
+        const searchQuery = chapter || userMessage;
+        fetchImage(searchQuery, subject).then(img => {
           if (img) {
             const imgMd = `\n\n![${img.alt}](${img.url})\n`;
             setMessages(prev => {

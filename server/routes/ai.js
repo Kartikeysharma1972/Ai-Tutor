@@ -494,9 +494,9 @@ router.post('/focus-area', authMiddleware, async (req, res) => {
 // ---------- IMAGE SEARCH ----------
 router.get('/search-image', authMiddleware, async (req, res) => {
   try {
-    const { q } = req.query;
+    const { q, subject } = req.query;
     if (!q) return res.json({ image: null });
-    const image = await searchWikipediaImage(q);
+    const image = await searchWikipediaImage(q, subject || '');
     res.json({ image });
   } catch {
     res.json({ image: null });
