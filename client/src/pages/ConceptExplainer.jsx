@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { FiSend, FiImage, FiX, FiMic, FiMicOff, FiBook, FiChevronDown, FiPaperclip } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  FiSend, FiImage, FiX, FiMic, FiMicOff, FiBook,
+  FiChevronDown, FiPaperclip, FiZap,
+} from 'react-icons/fi';
 import AppLayout from '../components/AppLayout';
 import ChatMarkdown from '../components/ChatMarkdown';
 import { useAuth } from '../contexts/AuthContext';
@@ -12,6 +15,13 @@ const levels = [
   { key: 'beginner', label: 'Beginner', desc: 'CBSE standard' },
   { key: 'intermediate', label: 'Intermediate', desc: 'Added depth' },
   { key: 'advanced', label: 'Advanced', desc: 'Competitive level' },
+];
+
+const samplePrompts = [
+  { emoji: '🌱', text: 'Explain photosynthesis with a simple example' },
+  { emoji: '📐', text: 'What is Pythagoras theorem? Show me a proof' },
+  { emoji: '⚖️', text: 'Why does ice float on water?' },
+  { emoji: '📜', text: 'Summarize the causes of the French Revolution' },
 ];
 
 async function fetchImage(query, subject) {
@@ -160,13 +170,14 @@ export default function ConceptExplainer() {
     if (docInputRef.current) docInputRef.current.value = '';
   };
 
-  const handleSend = async () => {
-    if (!input.trim() && !imageFile && !docFile) return;
+  const handleSend = async (overrideInput) => {
+    const inputToSend = (overrideInput ?? input).trim();
+    if (!inputToSend && !imageFile && !docFile) return;
     if (isListening) {
       recognitionRef.current?.stop();
       setIsListening(false);
     }
-    const userMessage = input.trim();
+    const userMessage = inputToSend;
     setInput('');
     const displayContent = userMessage || (imageFile ? '[Image uploaded]' : docFile ? `[File: ${docFile.name}]` : '');
     setMessages(prev => [...prev, { role: 'user', content: displayContent }]);
@@ -238,206 +249,252 @@ export default function ConceptExplainer() {
     }
   };
 
+  const scopeLabel = subject
+    ? `${subject}${chapter ? ' · ' + (chapter.length > 22 ? chapter.substring(0, 22) + '…' : chapter) : ''}`
+    : 'All subjects';
+
   return (
     <AppLayout activeTool="concept-explainer">
       <div className="flex flex-col h-full">
-        {/* Top Bar — Level + Subject/Chapter */}
-        <div className="px-4 py-2 border-b border-gray-100 bg-white">
+        {/* Top Control Bar */}
+        <div className="px-5 py-3 border-b border-gray-100 bg-white/70 backdrop-blur-sm">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-400 mr-1">Level:</span>
-              {levels.map(l => (
-                <button
-                  key={l.key}
-                  onClick={() => setLevel(l.key)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                    level === l.key
-                      ? 'bg-primary-400 text-white'
-                      : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-                  }`}
-                  title={l.desc}
-                >
-                  {l.label}
-                </button>
-              ))}
+              <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mr-1">Level</span>
+              <div className="segmented">
+                {levels.map(l => (
+                  <button
+                    key={l.key}
+                    onClick={() => setLevel(l.key)}
+                    data-active={level === l.key}
+                    title={l.desc}
+                  >
+                    {l.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <button
               onClick={() => setShowScope(!showScope)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                subject ? 'bg-primary-50 text-primary-600 border border-primary-200' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12.5px] font-semibold transition-all border ${
+                subject
+                  ? 'bg-primary-50 text-primary-700 border-primary-100'
+                  : 'bg-white text-gray-500 border-gray-100 hover:border-primary-200 hover:text-primary-600'
               }`}
             >
               <FiBook size={13} />
-              {subject ? `${subject}${chapter ? ' · ' + chapter.substring(0, 25) + (chapter.length > 25 ? '...' : '') : ''}` : 'Select Subject'}
+              {scopeLabel}
               <FiChevronDown size={12} className={`transition-transform ${showScope ? 'rotate-180' : ''}`} />
             </button>
           </div>
 
-          {/* Subject/Chapter Picker */}
-          {showScope && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-2 pb-1">
-              <div className="grid grid-cols-2 gap-2">
-                <select
-                  value={subject}
-                  onChange={e => setSubject(e.target.value)}
-                  className="px-3 py-2 rounded-lg border border-gray-200 text-xs bg-white focus:border-primary-400 outline-none"
-                >
-                  <option value="">All subjects</option>
-                  {subjects.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-                <select
-                  value={chapter}
-                  onChange={e => setChapter(e.target.value)}
-                  disabled={!subject}
-                  className="px-3 py-2 rounded-lg border border-gray-200 text-xs bg-white focus:border-primary-400 outline-none disabled:opacity-40"
-                >
-                  <option value="">All chapters</option>
-                  {chapters.map((ch, i) => <option key={i} value={ch}>{ch}</option>)}
-                </select>
-              </div>
-            </motion.div>
-          )}
+          <AnimatePresence>
+            {showScope && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <select
+                    value={subject}
+                    onChange={e => setSubject(e.target.value)}
+                    className="px-3 py-2 rounded-xl border border-gray-200 text-[12.5px] bg-white focus:border-primary-400 focus:ring-2 focus:ring-primary-100 outline-none"
+                  >
+                    <option value="">All subjects</option>
+                    {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <select
+                    value={chapter}
+                    onChange={e => setChapter(e.target.value)}
+                    disabled={!subject}
+                    className="px-3 py-2 rounded-xl border border-gray-200 text-[12.5px] bg-white focus:border-primary-400 focus:ring-2 focus:ring-primary-100 outline-none disabled:opacity-40"
+                  >
+                    <option value="">All chapters</option>
+                    {chapters.map((ch, i) => <option key={i} value={ch}>{ch}</option>)}
+                  </select>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
-          {messages.length === 0 && (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <div className="text-5xl mb-4">📚</div>
-                <h3 className="text-lg font-medium text-gray-700 mb-2">Concept Explainer</h3>
-                <p className="text-sm text-gray-400 max-w-md">
-                  Ask any question from your Class {user?.grade} syllabus. Select a subject & chapter for more focused answers. You can also use voice, upload an image, or attach a file (PDF, TXT, DOC).
-                </p>
-                {SpeechRecognition && (
-                  <p className="text-xs text-primary-400 mt-2">🎤 Voice input available — click the mic button to speak your question</p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {messages.map((msg, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                msg.role === 'user'
-                  ? 'bg-primary-400 text-white rounded-br-md'
-                  : 'bg-white border border-gray-100 shadow-sm rounded-bl-md'
-              }`}>
-                {msg.role === 'assistant' ? (
-                  <ChatMarkdown content={msg.content} />
-                ) : (
-                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                )}
-              </div>
-            </motion.div>
-          ))}
-
-          {loading && (
-            <div className="flex justify-start">
-              <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm">
-                <div className="flex gap-1">
-                  <div className="w-2 h-2 bg-primary-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                  <div className="w-2 h-2 bg-primary-300 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                  <div className="w-2 h-2 bg-primary-300 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+        <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6">
+          <div className="max-w-3xl mx-auto space-y-6">
+            {messages.length === 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-center pt-8"
+              >
+                <div className="inline-flex w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-100 to-primary-200/60 text-primary-600 items-center justify-center mb-4 shadow-sm">
+                  <FiZap className="text-2xl" />
                 </div>
-              </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
+                <h2 className="font-display font-extrabold text-xl md:text-2xl text-gray-900">
+                  Ask me anything from your Class {user?.grade} syllabus
+                </h2>
+                <p className="mt-2 text-[13.5px] text-gray-500 max-w-md mx-auto">
+                  Pick a subject + chapter for focused answers, or just ask. You can also speak, attach an image, or drop a PDF.
+                </p>
+
+                {/* Sample prompts */}
+                <div className="mt-7 grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-2xl mx-auto">
+                  {samplePrompts.map((p, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleSend(p.text)}
+                      className="surface surface-hover text-left px-4 py-3 flex items-start gap-3 group"
+                    >
+                      <span className="text-xl flex-shrink-0">{p.emoji}</span>
+                      <span className="text-[13px] text-gray-700 leading-relaxed group-hover:text-gray-900">{p.text}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {SpeechRecognition && (
+                  <p className="text-[11.5px] text-gray-400 mt-6">
+                    🎤 Voice input available — tap the mic to speak your question
+                  </p>
+                )}
+              </motion.div>
+            )}
+
+            {messages.map((msg, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+                  msg.role === 'user'
+                    ? 'bg-gradient-to-br from-primary-500 to-primary-600 text-white rounded-br-md shadow-[0_8px_22px_-12px_rgba(46,134,193,0.55)]'
+                    : 'bg-white border border-gray-100 shadow-[0_1px_2px_rgba(15,23,42,0.04)] rounded-bl-md'
+                }`}>
+                  {msg.role === 'assistant' ? (
+                    <ChatMarkdown content={msg.content} />
+                  ) : (
+                    <p className="text-[13.5px] whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                  )}
+                </div>
+              </motion.div>
+            ))}
+
+            {loading && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
+                <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm">
+                  <div className="flex gap-1.5">
+                    <div className="w-2 h-2 bg-primary-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-2 h-2 bg-primary-300 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="w-2 h-2 bg-primary-300 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
         </div>
 
-        {/* Image Preview */}
-        {imagePreview && (
-          <div className="px-4 py-2 border-t border-gray-100 bg-gray-50">
-            <div className="relative inline-block">
-              <img src={imagePreview} alt="upload" className="h-20 rounded-lg object-cover" />
-              <button onClick={removeImage} className="absolute -top-2 -right-2 bg-red-400 text-white rounded-full p-0.5">
-                <FiX className="text-xs" />
-              </button>
+        {/* Attachment previews */}
+        {(imagePreview || docFile) && (
+          <div className="px-5 py-2 border-t border-gray-100 bg-white/70">
+            <div className="max-w-3xl mx-auto flex flex-wrap items-center gap-2">
+              {imagePreview && (
+                <div className="relative inline-block">
+                  <img src={imagePreview} alt="upload" className="h-16 w-16 rounded-xl object-cover border border-gray-100" />
+                  <button onClick={removeImage} className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600">
+                    <FiX size={10} />
+                  </button>
+                </div>
+              )}
+              {docFile && (
+                <div className="inline-flex items-center gap-2 bg-white border border-gray-100 rounded-xl px-3 py-2 shadow-sm">
+                  <span className="grid place-items-center w-7 h-7 rounded-lg bg-primary-50 text-primary-600">
+                    <FiPaperclip size={12} />
+                  </span>
+                  <div className="text-[12px] leading-tight">
+                    <p className="font-semibold text-gray-700 truncate max-w-[180px]">{docFile.name}</p>
+                    <p className="text-gray-400 text-[10.5px]">{(docFile.size / 1024).toFixed(1)} KB</p>
+                  </div>
+                  <button onClick={removeDoc} className="ml-1 text-gray-400 hover:text-red-500">
+                    <FiX size={13} />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* Document Preview */}
-        {docFile && (
-          <div className="px-4 py-2 border-t border-gray-100 bg-gray-50">
-            <div className="inline-flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2">
-              <FiPaperclip className="text-primary-400" />
-              <div className="text-xs">
-                <p className="font-medium text-gray-700 truncate max-w-[200px]">{docFile.name}</p>
-                <p className="text-gray-400">{(docFile.size / 1024).toFixed(1)} KB</p>
-              </div>
-              <button onClick={removeDoc} className="ml-1 text-red-400 hover:text-red-500">
-                <FiX size={14} />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Voice Listening Indicator */}
+        {/* Listening Indicator */}
         {isListening && (
-          <div className="px-4 py-2 border-t border-gray-100 bg-red-50">
+          <div className="px-5 py-2 border-t border-gray-100 bg-rose-50/70">
             <div className="flex items-center gap-2 justify-center">
-              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-              <span className="text-xs text-red-600 font-medium">Listening... speak now</span>
+              <span className="w-2 h-2 bg-rose-500 rounded-full animate-pulse"></span>
+              <span className="text-[12px] text-rose-600 font-semibold">Listening… speak now</span>
             </div>
           </div>
         )}
 
         {/* Input Area */}
-        <div className="p-4 border-t border-gray-100 bg-white">
-          <div className="flex items-end gap-2 max-w-4xl mx-auto">
-            <input type="file" ref={fileInputRef} accept="image/*" onChange={handleImageSelect} className="hidden" />
-            <input type="file" ref={docInputRef} accept=".pdf,.txt,.doc,.docx" onChange={handleDocSelect} className="hidden" />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="p-2.5 text-gray-400 hover:text-primary-400 hover:bg-primary-50 rounded-xl transition-colors flex-shrink-0"
-              title="Upload image"
-            >
-              <FiImage className="text-xl" />
-            </button>
-            <button
-              onClick={() => docInputRef.current?.click()}
-              className="p-2.5 text-gray-400 hover:text-primary-400 hover:bg-primary-50 rounded-xl transition-colors flex-shrink-0"
-              title="Upload file (PDF, TXT, DOC)"
-            >
-              <FiPaperclip className="text-xl" />
-            </button>
-            {SpeechRecognition && (
+        <div className="p-4 md:p-5 border-t border-gray-100 bg-white">
+          <div className="max-w-3xl mx-auto">
+            <div className="flex items-end gap-2 bg-white border border-gray-200 rounded-2xl p-1.5 shadow-[0_4px_18px_-12px_rgba(15,23,42,0.18)] focus-within:border-primary-400 focus-within:ring-4 focus-within:ring-primary-100 transition-all">
+              <input type="file" ref={fileInputRef} accept="image/*" onChange={handleImageSelect} className="hidden" />
+              <input type="file" ref={docInputRef} accept=".pdf,.txt" onChange={handleDocSelect} className="hidden" />
+              <div className="flex items-center gap-0.5 pl-1">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-colors"
+                  title="Upload image"
+                >
+                  <FiImage className="text-lg" />
+                </button>
+                <button
+                  onClick={() => docInputRef.current?.click()}
+                  className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-colors"
+                  title="Upload file (PDF, TXT)"
+                >
+                  <FiPaperclip className="text-lg" />
+                </button>
+                {SpeechRecognition && (
+                  <button
+                    onClick={toggleVoice}
+                    className={`p-2 rounded-xl transition-colors ${
+                      isListening
+                        ? 'bg-rose-100 text-rose-500 hover:bg-rose-200'
+                        : 'text-gray-400 hover:text-primary-600 hover:bg-primary-50'
+                    }`}
+                    title={isListening ? 'Stop listening' : 'Voice input'}
+                  >
+                    {isListening ? <FiMicOff className="text-lg" /> : <FiMic className="text-lg" />}
+                  </button>
+                )}
+              </div>
+              <textarea
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={isListening ? 'Listening…' : 'Ask anything from your syllabus…'}
+                rows={1}
+                className="flex-1 resize-none px-2 py-2.5 outline-none text-[14px] max-h-32 bg-transparent"
+                style={{ minHeight: '40px' }}
+              />
               <button
-                onClick={toggleVoice}
-                className={`p-2.5 rounded-xl transition-colors flex-shrink-0 ${
-                  isListening
-                    ? 'bg-red-100 text-red-500 hover:bg-red-200'
-                    : 'text-gray-400 hover:text-primary-400 hover:bg-primary-50'
-                }`}
-                title={isListening ? 'Stop listening' : 'Voice input'}
+                onClick={() => handleSend()}
+                disabled={loading || (!input.trim() && !imageFile && !docFile)}
+                className="p-2.5 bg-gradient-to-br from-primary-500 to-primary-600 text-white rounded-xl hover:opacity-95 transition-opacity disabled:opacity-40 flex-shrink-0 shadow-[0_6px_16px_-8px_rgba(46,134,193,0.6)]"
+                aria-label="Send"
               >
-                {isListening ? <FiMicOff className="text-xl" /> : <FiMic className="text-xl" />}
+                <FiSend className="text-base" />
               </button>
-            )}
-            <textarea
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={isListening ? 'Listening...' : 'Ask any question...'}
-              rows={1}
-              className="flex-1 resize-none px-4 py-2.5 rounded-xl border border-gray-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 outline-none text-sm max-h-32"
-              style={{ minHeight: '44px' }}
-            />
-            <button
-              onClick={handleSend}
-              disabled={loading || (!input.trim() && !imageFile && !docFile)}
-              className="p-2.5 bg-primary-400 text-white rounded-xl hover:bg-primary-500 transition-colors disabled:opacity-40 flex-shrink-0"
-            >
-              <FiSend className="text-lg" />
-            </button>
+            </div>
+            <p className="mt-1.5 text-[10.5px] text-gray-400 text-center">
+              AI can be inaccurate. Always double-check important facts.
+            </p>
           </div>
         </div>
       </div>

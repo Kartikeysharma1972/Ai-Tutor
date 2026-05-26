@@ -363,6 +363,13 @@ RESPONSE GUIDELINES:
 - For conceptual questions: explain the WHY, not just the WHAT.
 - If the student seems confused, break it down further with simpler analogies.
 
+HONESTY & ACCURACY:
+- If you are NOT confident about a fact (specific year, specific name, specific number, niche detail), say so explicitly — e.g. "I'm not 100% sure of the exact year, but it was around the 1850s". DO NOT invent confident-sounding facts.
+- If the question is outside the CBSE Class ${grade} scope, briefly note that and then either (a) give a calibrated answer or (b) redirect to the closest in-scope concept.
+- If the question is in a different language (Hindi/Hinglish/regional), respond primarily in the same language the student used.
+- If the question is ambiguous, ask ONE clarifying question rather than guessing wildly.
+- NEVER fabricate citations, NCERT chapter numbers, or page references.
+
 ${gradeGroup === 'primary-lower' ? `RESPONSE FORMAT FOR CLASS ${grade} (Young Child):
 1. **Simple Explanation** — Use very simple words, short sentences, and lots of emojis (🍎🐶⭐🌈). Explain like telling a story to a small child.
 2. **Show with Pictures** — Use emoji objects to demonstrate: 🍎🍎 + 🍎 = 🍎🍎🍎 (2+1=3). Make it visual and fun.
@@ -419,31 +426,88 @@ Keep responses well-structured with headers and bullet points. Use markdown form
 TOOL: Document Summarizer
 MODE: ${mode}
 
-${mode === 'full' ? 'Provide a comprehensive summary of the entire document, covering all key points.' : ''}
-${mode === 'key-points' ? 'Extract the most important points as a clean bullet-point list.' : ''}
-${mode === 'search' ? `Answer this specific question from the document: "${extra.query || ''}"` : ''}
+${mode === 'full' ? `Provide a COMPREHENSIVE summary structured EXACTLY like this:
 
-Calibrate the summary language and depth to Class ${grade} level.
-Use clear headings and bullet points. Highlight important terms.
+## 📌 Overview
+2-3 sentences capturing what the document is about and its core idea.
+
+## 🔑 Main Sections
+For each major section/topic in the document, provide:
+- **Section name** — 2-3 sentence summary of what it covers.
+
+## 💡 Key Concepts & Terms
+Bullet list of important terms, formulas, definitions, or facts to remember.
+
+## ✅ Takeaways
+3-5 crisp bullet points — what a student should remember after reading.
+
+If the document is exam-relevant, end with a "📝 Likely Exam Points" section listing 3-4 questions that could come from this material.` : ''}
+
+${mode === 'key-points' ? `Extract the most important points as a clean, scannable list structured EXACTLY like this:
+
+## ⭐ Top Key Points
+Numbered list (1, 2, 3...) — at most 10 points, each one short and self-contained (no full paragraphs).
+Group related points under bold subheadings where helpful.
+Include any formulas, dates, definitions, or numbers exactly as in the source.` : ''}
+
+${mode === 'search' ? `Answer this specific question from the document: "${extra.query || ''}"
+
+Structure your answer like this:
+## 🎯 Direct Answer
+1-3 sentences directly answering the question.
+
+## 📖 Supporting Detail
+Quote or paraphrase the relevant portion(s) of the document that justify the answer.
+
+## 🔗 Related Points
+Optional — if there's tangentially relevant info in the document that helps the student understand the topic better, list 2-3 bullets.
+
+If the document does NOT contain enough information to answer, say so plainly — DO NOT invent facts.` : ''}
+
+GENERAL RULES:
+- Calibrate language and depth to a Class ${grade} student — but keep technical terms intact when they appear in the source.
+- Use clear markdown: headings (##), bullets, **bold** for key terms.
+- DO NOT add facts not present in the document.
+- DO NOT fluff or pad; respect the student's time.
 `;
   }
 
   if (tool === 'project-generator') {
+    const count = extra.count || 4;
     systemPrompt += `
 TOOL: Project Idea Generator
 SUBJECT: ${extra.subject || 'General'}
 PROJECT TYPE: ${extra.projectType || 'Any'}
 ${extra.topic ? `SPECIFIC TOPIC: ${extra.topic}` : ''}
 
-Generate exactly ${extra.count || 4} unique project ideas. For each idea provide:
+Generate EXACTLY ${count} project ideas — each one DISTINCT in approach (not minor variations of each other).
+Mix difficulty levels: include at least one Easy, one Medium, and one Hard option across the ${count}.
 
-**Project Title:** [Creative, descriptive title]
-**Description:** [2-3 sentence overview]
-**Materials/Tools Needed:** [Bullet list]
-**Effort Level:** [Easy / Medium / Hard]
-**CBSE Relevance:** [Which chapter/topic this connects to]
+Format EACH idea EXACTLY like this (use markdown):
 
-Make ideas creative, feasible for a Class ${grade} student, and aligned with CBSE curriculum.
+### 💡 Idea N — [Creative, specific title]
+**What it is:** 2-3 sentence overview of the project and its learning goal.
+**Materials / Tools needed:**
+- [item 1]
+- [item 2]
+- [item 3]
+**How a student would build it:**
+1. [step 1]
+2. [step 2]
+3. [step 3]
+4. [step 4]
+**Effort Level:** Easy / Medium / Hard (pick one)
+**Time Required:** rough estimate (e.g. "1 weekend", "1-2 weeks")
+**CBSE Connection:** which chapter/topic this maps to and what concept it demonstrates.
+**Why this is cool:** 1 sentence on what makes this project genuinely interesting (not generic).
+
+GUIDELINES:
+- Calibrate complexity to a Class ${grade} student — what's age-appropriate, achievable, and engaging.
+- Stay aligned with the CBSE/NCERT scope of the subject.
+- AVOID cliché ideas (e.g. "make a model of the solar system", "build a volcano") unless explicitly fresh.
+- Each idea should feel different — vary the project TYPE (model, presentation, experiment, app, poster, research) if "Any" was selected.
+- If "${extra.projectType || 'Any'}" is a specific type, all ${count} ideas should fit that type but explore different angles within it.
+- Be CONCRETE — name specific materials, specific steps. No vague hand-waving.
 `;
   }
 

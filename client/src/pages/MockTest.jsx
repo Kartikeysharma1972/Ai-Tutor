@@ -313,9 +313,11 @@ export default function MockTest() {
       <AppLayout activeTool="exam-prep">
         <div className="flex items-center justify-center h-full">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-400 mx-auto mb-4"></div>
-            <p className="text-gray-500">Generating your mock test...</p>
-            <p className="text-xs text-gray-300 mt-1">This may take a moment</p>
+            <div className="inline-flex w-14 h-14 rounded-2xl bg-primary-50 text-primary-500 items-center justify-center mb-3">
+              <div className="animate-spin rounded-full h-7 w-7 border-2 border-primary-300 border-t-transparent" />
+            </div>
+            <p className="font-display font-bold text-gray-800">Generating your mock test…</p>
+            <p className="text-[12px] text-gray-400 mt-1">Calibrating questions to Class {user?.grade}</p>
           </div>
         </div>
       </AppLayout>
@@ -329,43 +331,56 @@ export default function MockTest() {
 
     return (
       <AppLayout activeTool="exam-prep">
-        <div className="p-6 max-w-3xl mx-auto">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <h1 className="text-xl font-bold text-gray-800 mb-4">Mock Test — {subject}</h1>
+        <div className="p-6 md:p-8 max-w-3xl mx-auto">
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-primary-500 mb-1.5">Mock Test</p>
+            <h1 className="font-display font-extrabold text-2xl md:text-[28px] text-gray-900 leading-tight">{subject}</h1>
+            <p className="mt-1.5 text-[13.5px] text-gray-500">Take a deep breath. You've got this.</p>
 
-            <div className="bg-primary-50 rounded-2xl p-5 mb-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                <div><div className="text-2xl font-bold text-primary-500">{questions.length}</div><div className="text-xs text-gray-500">Questions</div></div>
-                <div><div className="text-2xl font-bold text-primary-500">{config?.totalTime} min</div><div className="text-xs text-gray-500">Duration</div></div>
-                <div><div className="text-2xl font-bold text-primary-500">Mixed</div><div className="text-xs text-gray-500">Difficulty</div></div>
-                <div><div className="text-2xl font-bold text-primary-500">Class {user?.grade}</div><div className="text-xs text-gray-500">Level</div></div>
+            <div className="mt-6 rounded-2xl overflow-hidden border border-primary-100 bg-gradient-to-br from-primary-50/50 via-white to-sky-50/40">
+              <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-primary-100/60">
+                {[
+                  { v: questions.length, l: 'Questions' },
+                  { v: `${config?.totalTime} min`, l: 'Duration' },
+                  { v: 'Mixed', l: 'Difficulty' },
+                  { v: `Class ${user?.grade}`, l: 'Level' },
+                ].map((s, i) => (
+                  <div key={i} className="px-4 py-4 text-center">
+                    <div className="font-display font-extrabold text-2xl text-primary-700">{s.v}</div>
+                    <div className="text-[11px] text-gray-500 mt-0.5 uppercase tracking-wider font-semibold">{s.l}</div>
+                  </div>
+                ))}
               </div>
-              <div className="mt-4 pt-3 border-t border-primary-100">
-                <p className="text-xs text-gray-500 text-center">
-                  <span className="font-medium">Topics:</span> {chapterDisplay}
-                </p>
+              <div className="px-4 py-3 border-t border-primary-100/70 bg-white/60">
+                <p className="text-[12px] text-gray-600 text-center"><span className="font-semibold">Topics:</span> {chapterDisplay}</p>
                 {questionTypes.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 justify-center mt-2">
                     {questionTypes.map(t => (
-                      <span key={t} className="px-2 py-0.5 rounded-full text-[10px] bg-white text-primary-600 font-medium">{formatType(t)}</span>
+                      <span key={t} className="px-2 py-0.5 rounded-full text-[10.5px] bg-primary-50 text-primary-700 border border-primary-100 font-semibold">{formatType(t)}</span>
                     ))}
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-6">
-              <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2"><FiAlertCircle className="text-yellow-500" /> Instructions</h3>
-              <ol className="space-y-2">
+            <div className="mt-5 surface p-5">
+              <h3 className="font-display font-bold text-gray-900 mb-3 flex items-center gap-2 text-[15px]"><FiAlertCircle className="text-amber-500" /> Instructions</h3>
+              <ol className="space-y-1.5">
                 {testInstructions.map((inst, i) => (
-                  <li key={i} className="text-sm text-gray-500 flex gap-2"><span className="text-gray-300 font-medium">{i + 1}.</span> {inst}</li>
+                  <li key={i} className="text-[13px] text-gray-600 flex gap-2.5">
+                    <span className="text-primary-400 font-bold flex-shrink-0">{i + 1}.</span>
+                    <span>{inst}</span>
+                  </li>
                 ))}
               </ol>
-              {user?.grade <= 5 && <p className="mt-3 text-sm text-primary-500 font-medium">Try your best! Read carefully and have fun learning.</p>}
+              {user?.grade <= 5 && <p className="mt-3 text-[13px] text-primary-600 font-semibold">Try your best! Read carefully and have fun learning. ✨</p>}
             </div>
 
-            <button onClick={startTest} className="w-full py-3 bg-primary-400 text-white rounded-xl font-semibold hover:bg-primary-500 transition-colors text-lg">
-              Start Test
+            <button
+              onClick={startTest}
+              className="w-full mt-5 py-3.5 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-2xl font-bold hover:opacity-95 transition-opacity text-[15px] shadow-[0_15px_35px_-12px_rgba(46,134,193,0.55)]"
+            >
+              I'm ready — Start Test →
             </button>
           </motion.div>
         </div>
@@ -374,82 +389,106 @@ export default function MockTest() {
   }
 
   const q = questions[current];
+  const progressPct = Math.round((answeredCount / questions.length) * 100);
+  const timeFraction = config?.totalTime ? timeLeft / (config.totalTime * 60) : 1;
 
   return (
     <AppLayout activeTool="exam-prep">
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full app-bg">
         {/* Timer Bar */}
-        <div className="bg-white border-b border-gray-100 px-4 py-2 flex items-center justify-between flex-shrink-0">
-          <span className="text-sm text-gray-500">Q {current + 1}/{questions.length}</span>
-          <div className={`flex items-center gap-1.5 font-mono font-semibold ${timeLeft < 60 ? 'text-red-500' : 'text-gray-700'}`}>
-            <FiClock /> {formatTime(timeLeft)}
+        <div className="bg-white/85 backdrop-blur-sm border-b border-gray-100 px-4 md:px-6 py-2.5 flex items-center justify-between flex-shrink-0 sticky top-0 z-10">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="text-[12.5px] font-semibold text-gray-700">
+              Question <span className="text-primary-600">{current + 1}</span> / {questions.length}
+            </span>
+            <div className="hidden sm:flex items-center gap-1.5">
+              <div className="w-28 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-primary-400 to-primary-600 transition-all"
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+              <span className="text-[11px] text-gray-500">{answeredCount}/{questions.length}</span>
+            </div>
           </div>
-          <span className="text-sm text-gray-400">{answeredCount}/{questions.length} answered</span>
+          <div className={`flex items-center gap-2 font-mono font-bold tabular-nums px-3 py-1 rounded-xl ${
+            timeLeft < 60
+              ? 'text-rose-600 bg-rose-50 animate-pulse'
+              : timeFraction < 0.25
+                ? 'text-amber-600 bg-amber-50'
+                : 'text-gray-700 bg-gray-50'
+          }`}>
+            <FiClock size={14} /> {formatTime(timeLeft)}
+          </div>
         </div>
 
         {/* Question */}
-        <div className="flex-1 overflow-y-auto p-6 max-w-3xl mx-auto w-full">
-          {q && (
-            <motion.div key={current} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
-              <div className="flex items-center gap-2 mb-4">
-                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                  q.difficulty === 'easy' ? 'bg-green-100 text-green-600' :
-                  q.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-600' :
-                  'bg-red-100 text-red-600'
-                }`}>{q.difficulty}</span>
-                <span className="text-xs text-gray-300">{q.topic}</span>
-              </div>
+        <div className="flex-1 overflow-y-auto p-6 md:p-8">
+          <div className="max-w-3xl mx-auto">
+            {q && (
+              <motion.div key={current} initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.25 }}>
+                <div className="flex items-center gap-2 mb-3 flex-wrap">
+                  {q.type && <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-bold uppercase tracking-wider bg-primary-50 text-primary-700 border border-primary-100">{formatType(q.type)}</span>}
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10.5px] font-bold uppercase tracking-wider border ${
+                    q.difficulty === 'easy' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                    q.difficulty === 'medium' ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                    'bg-rose-50 text-rose-700 border-rose-100'
+                  }`}>{q.difficulty}</span>
+                  {q.topic && <span className="text-[11px] text-gray-400">· {q.topic}</span>}
+                </div>
 
-              <div className="flex items-center gap-2 mb-1">
-                {q.type && <span className="px-2 py-0.5 rounded-full text-xs bg-primary-50 text-primary-600 font-medium">{formatType(q.type)}</span>}
-              </div>
+                <h2 className="font-display font-bold text-[18px] md:text-xl text-gray-900 mb-6 leading-snug whitespace-pre-line">{q.question}</h2>
 
-              <h2 className="text-lg font-medium text-gray-800 mb-6 leading-relaxed whitespace-pre-line">{q.question}</h2>
-
-              <QuestionInput type={q.type} question={q} current={current} answers={answers} handleAnswer={handleAnswer} />
-            </motion.div>
-          )}
+                <QuestionInput type={q.type} question={q} current={current} answers={answers} handleAnswer={handleAnswer} />
+              </motion.div>
+            )}
+          </div>
         </div>
 
         {/* Question Navigation */}
-        <div className="bg-white border-t border-gray-100 p-4 flex-shrink-0">
-          <div className="flex flex-wrap gap-1.5 mb-3 justify-center max-w-3xl mx-auto">
-            {questions.map((_, i) => (
+        <div className="bg-white border-t border-gray-100 px-4 md:px-6 py-3 flex-shrink-0">
+          <div className="max-w-3xl mx-auto">
+            <div className="flex flex-wrap gap-1.5 mb-3 justify-center">
+              {questions.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => navigateTo(i)}
+                  className={`w-8 h-8 rounded-lg text-[11.5px] font-bold transition-all ${
+                    i === current
+                      ? 'bg-gradient-to-br from-primary-500 to-primary-600 text-white shadow-sm ring-2 ring-primary-200'
+                      : answers[i] !== undefined
+                        ? 'bg-primary-50 text-primary-700 border border-primary-100'
+                        : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                  }`}
+                  aria-label={`Go to question ${i + 1}`}
+                >
+                  {i + 1}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center justify-between gap-3">
               <button
-                key={i}
-                onClick={() => navigateTo(i)}
-                className={`w-8 h-8 rounded-lg text-xs font-medium transition-all ${
-                  i === current ? 'bg-primary-400 text-white' :
-                  answers[i] !== undefined ? 'bg-primary-100 text-primary-600' :
-                  'bg-gray-50 text-gray-400 hover:bg-gray-100'
-                }`}
+                onClick={() => navigateTo(Math.max(0, current - 1))} disabled={current === 0}
+                className="flex items-center gap-1.5 px-4 py-2 text-[13px] text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-xl disabled:opacity-30 font-medium transition-colors"
               >
-                {i + 1}
+                <FiChevronLeft size={14} /> Previous
               </button>
-            ))}
-          </div>
-          <div className="flex items-center justify-between max-w-3xl mx-auto">
-            <button
-              onClick={() => navigateTo(Math.max(0, current - 1))} disabled={current === 0}
-              className="flex items-center gap-1 px-4 py-2 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-30"
-            >
-              <FiChevronLeft /> Previous
-            </button>
-            {current === questions.length - 1 ? (
-              <button
-                onClick={handleSubmit} disabled={submitting}
-                className="px-6 py-2 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-600 transition-colors disabled:opacity-50"
-              >
-                {submitting ? 'Submitting...' : 'Submit Test'}
-              </button>
-            ) : (
-              <button
-                onClick={() => navigateTo(Math.min(questions.length - 1, current + 1))}
-                className="flex items-center gap-1 px-4 py-2 text-sm text-primary-500 hover:text-primary-600 font-medium"
-              >
-                Next <FiChevronRight />
-              </button>
-            )}
+              {current === questions.length - 1 ? (
+                <button
+                  onClick={handleSubmit} disabled={submitting}
+                  className="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-bold hover:opacity-95 transition-opacity disabled:opacity-50 shadow-[0_8px_22px_-10px_rgba(16,185,129,0.5)]"
+                >
+                  {submitting ? 'Submitting…' : 'Submit Test'}
+                </button>
+              ) : (
+                <button
+                  onClick={() => navigateTo(Math.min(questions.length - 1, current + 1))}
+                  className="flex items-center gap-1.5 px-4 py-2 text-[13px] text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded-xl font-semibold transition-colors"
+                >
+                  Next <FiChevronRight size={14} />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>

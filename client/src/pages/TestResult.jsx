@@ -120,20 +120,31 @@ export default function TestResult() {
   const avgTimePerQ = result.questions?.length ? Math.round(totalTimeTaken / result.questions.length) : 0;
   const timeUsedPct = timeAllotted > 0 ? Math.round((totalTimeTaken / timeAllotted) * 100) : 0;
 
+  const headlineMsg =
+    result.accuracy >= 90 ? 'Outstanding — you crushed it.' :
+    result.accuracy >= 75 ? 'Strong performance.' :
+    result.accuracy >= 50 ? 'Solid effort — let’s sharpen the weak spots.' :
+    result.accuracy >= 30 ? 'Room to grow. Review and try again.' :
+    'Tough one. Focus on the basics and bounce back.';
+
   return (
     <AppLayout activeTool="exam-prep">
-      <div className="p-6 max-w-4xl mx-auto" ref={printRef}>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="flex items-center justify-between mb-4">
-            <button onClick={() => navigate('/exam-prep')} className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600">
-              <FiArrowLeft /> Back to Exam Prep
+      <div className="p-6 md:p-8 max-w-4xl mx-auto" ref={printRef}>
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+          <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+            <button onClick={() => navigate('/exam-prep')} className="flex items-center gap-1.5 text-[13px] text-gray-500 hover:text-gray-800 font-medium">
+              <FiArrowLeft size={14} /> Back to Exam Prep
             </button>
-            <button onClick={handleDownloadPDF} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-primary-500 border border-primary-200 rounded-lg hover:bg-primary-50 transition-colors">
-              <FiDownload size={14} /> Download Report
+            <button onClick={handleDownloadPDF} className="flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-semibold text-primary-600 border border-primary-200 rounded-xl hover:bg-primary-50 transition-colors">
+              <FiDownload size={13} /> Download Report
             </button>
           </div>
 
-          <h1 className="text-xl font-bold text-gray-800 mb-6">Test Results</h1>
+          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-primary-500 mb-1">Test Results</p>
+          <h1 className="font-display font-extrabold text-2xl md:text-[28px] text-gray-900 leading-tight">{headlineMsg}</h1>
+          <p className="mt-1 text-[13.5px] text-gray-500">{result.subject || 'Mock Test'} · Class {user?.grade}</p>
+
+          <div className="mt-5" />
 
           {/* Gamification for Class 1-8 */}
           {showGamification && (
@@ -161,28 +172,29 @@ export default function TestResult() {
           )}
 
           {/* Score Card */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
-            <div className={`grid ${showPercentile ? 'grid-cols-2 md:grid-cols-5' : 'grid-cols-2 md:grid-cols-4'} gap-6 text-center`}>
+          <div className="surface p-6 mb-6 relative overflow-hidden">
+            <div className="absolute -top-12 -right-12 w-44 h-44 rounded-full bg-primary-100/40 blur-3xl" />
+            <div className={`relative grid ${showPercentile ? 'grid-cols-2 md:grid-cols-5' : 'grid-cols-2 md:grid-cols-4'} gap-4 text-center`}>
               <div>
-                <div className={`text-4xl font-bold ${scoreColor}`}>{result.score}/{result.totalQuestions}</div>
-                <div className="text-sm text-gray-400 mt-1">Score</div>
+                <div className={`font-display font-extrabold text-3xl md:text-4xl ${scoreColor}`}>{result.score}<span className="text-gray-300 text-2xl">/{result.totalQuestions}</span></div>
+                <div className="text-[11px] text-gray-500 mt-1 uppercase tracking-wider font-semibold">Score</div>
               </div>
               <div>
-                <div className={`text-4xl font-bold ${scoreColor}`}>{result.accuracy}%</div>
-                <div className="text-sm text-gray-400 mt-1">Accuracy</div>
+                <div className={`font-display font-extrabold text-3xl md:text-4xl ${scoreColor}`}>{result.accuracy}%</div>
+                <div className="text-[11px] text-gray-500 mt-1 uppercase tracking-wider font-semibold">Accuracy</div>
               </div>
               <div>
-                <div className="text-4xl font-bold text-primary-500">{result.totalQuestions}</div>
-                <div className="text-sm text-gray-400 mt-1">Questions</div>
+                <div className="font-display font-extrabold text-3xl md:text-4xl text-primary-600">{result.totalQuestions}</div>
+                <div className="text-[11px] text-gray-500 mt-1 uppercase tracking-wider font-semibold">Questions</div>
               </div>
               <div>
-                <div className="text-4xl font-bold text-primary-500">{result.weakAreas?.length || 0}</div>
-                <div className="text-sm text-gray-400 mt-1">Weak Areas</div>
+                <div className={`font-display font-extrabold text-3xl md:text-4xl ${result.weakAreas?.length ? 'text-rose-500' : 'text-emerald-500'}`}>{result.weakAreas?.length || 0}</div>
+                <div className="text-[11px] text-gray-500 mt-1 uppercase tracking-wider font-semibold">Weak Areas</div>
               </div>
               {showPercentile && (
                 <div>
-                  <div className="text-4xl font-bold text-indigo-500">{percentile}th</div>
-                  <div className="text-sm text-gray-400 mt-1">Percentile</div>
+                  <div className="font-display font-extrabold text-3xl md:text-4xl text-indigo-600">{percentile}<span className="text-xl">th</span></div>
+                  <div className="text-[11px] text-gray-500 mt-1 uppercase tracking-wider font-semibold">Percentile</div>
                 </div>
               )}
             </div>

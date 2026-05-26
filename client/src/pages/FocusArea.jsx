@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FiDownload, FiEye, FiEyeOff, FiBookOpen, FiMap, FiHelpCircle, FiEdit3 } from 'react-icons/fi';
+import { FiDownload, FiEye, FiEyeOff, FiBookOpen, FiMap, FiHelpCircle, FiEdit3, FiTarget } from 'react-icons/fi';
 import AppLayout from '../components/AppLayout';
+import PageHeader from '../components/PageHeader';
 import ChatMarkdown from '../components/ChatMarkdown';
 import { useAuth } from '../contexts/AuthContext';
 import { aiAPI, curriculumAPI } from '../utils/api';
@@ -163,101 +164,102 @@ export default function FocusArea() {
 
   return (
     <AppLayout activeTool="exam-prep">
-      <div className="p-6 max-w-4xl mx-auto">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-xl font-bold text-gray-800 mb-1">Focus Area — {subject}</h1>
-          <p className="text-sm text-gray-400 mb-6">Deep study on a specific topic with comprehensive notes</p>
+      <div className="p-6 md:p-8 max-w-4xl mx-auto">
+        <PageHeader
+          icon={FiTarget}
+          eyebrow="Focus Area"
+          title={subject ? `Deep-study: ${subject}` : 'Deep-study any topic.'}
+          subtitle="Pick a chapter, optionally narrow to a specific topic — get concepts, mind maps, exam questions, and click-to-reveal practice cards."
+        />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Chapter *</label>
-              <select
-                value={selectedChapter} onChange={e => setSelectedChapter(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-primary-400 outline-none text-sm bg-white"
-              >
-                <option value="">Select chapter</option>
-                {chapters.map((ch, i) => <option key={i} value={ch}>{ch}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">
-                Specific Topic <span className="text-gray-400 font-normal">(optional)</span>
-              </label>
-              <input
-                type="text" value={topic} onChange={e => setTopic(e.target.value)}
-                placeholder="Leave blank to cover the whole chapter"
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-primary-400 outline-none text-sm"
-              />
-              <p className="text-[11px] text-gray-400 mt-1">
-                Tip: any topic works — even one from a different chapter or subject.
-              </p>
-            </div>
+        <div className="mt-7 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-[12.5px] font-semibold text-gray-700 mb-1.5">Chapter <span className="text-rose-500">*</span></label>
+            <select
+              value={selectedChapter} onChange={e => setSelectedChapter(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 outline-none text-sm bg-white"
+            >
+              <option value="">Select chapter</option>
+              {chapters.map((ch, i) => <option key={i} value={ch}>{ch}</option>)}
+            </select>
           </div>
+          <div>
+            <label className="block text-[12.5px] font-semibold text-gray-700 mb-1.5">
+              Specific Topic <span className="text-gray-400 font-normal">(optional)</span>
+            </label>
+            <input
+              type="text" value={topic} onChange={e => setTopic(e.target.value)}
+              placeholder="Leave blank to cover the whole chapter"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 outline-none text-sm"
+            />
+            <p className="text-[11px] text-gray-400 mt-1.5">
+              Tip: any topic works — even one outside this chapter.
+            </p>
+          </div>
+        </div>
 
-          <button
-            onClick={handleGenerate} disabled={loading}
-            className="w-full py-3 bg-primary-400 text-white rounded-xl font-semibold hover:bg-primary-500 transition-colors disabled:opacity-50"
-          >
-            {loading ? 'Generating study material...' : 'Generate Focus Area'}
-          </button>
+        <button
+          onClick={handleGenerate} disabled={loading}
+          className="w-full mt-5 py-3 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-xl font-semibold hover:opacity-95 transition-opacity disabled:opacity-50 shadow-[0_10px_28px_-12px_rgba(46,134,193,0.5)]"
+        >
+          {loading ? 'Generating study material…' : 'Generate Focus Area'}
+        </button>
 
-          {loading && (
-            <div className="mt-8 text-center">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-400 mx-auto mb-3"></div>
-              <p className="text-sm text-gray-400">Creating comprehensive study material...</p>
+        {loading && (
+          <div className="mt-6 surface p-6 space-y-3">
+            <div className="skeleton h-4 w-1/2" />
+            <div className="skeleton h-3 w-full" />
+            <div className="skeleton h-3 w-5/6" />
+            <div className="skeleton h-3 w-3/4" />
+            <div className="skeleton h-3 w-2/3" />
+          </div>
+        )}
+
+        {result && (
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mt-6">
+            {/* Tab Navigation */}
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+              <div className="segmented">
+                {tabs.map(tab => {
+                  const Icon = tab.icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      data-active={activeTab === tab.id}
+                      className="flex items-center gap-1.5"
+                    >
+                      <Icon size={13} /> {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                onClick={handleDownloadPDF}
+                className="flex items-center gap-1.5 px-3 py-2 text-[12.5px] font-semibold text-primary-600 border border-primary-200 rounded-xl hover:bg-primary-50 transition-colors"
+              >
+                <FiDownload size={13} /> PDF
+              </button>
             </div>
-          )}
 
-          {result && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-6">
-              {/* Tab Navigation */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex gap-1 bg-gray-50 rounded-xl p-1">
-                  {tabs.map(tab => {
-                    const Icon = tab.icon;
-                    return (
-                      <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                          activeTab === tab.id
-                            ? 'bg-white text-primary-600 shadow-sm'
-                            : 'text-gray-400 hover:text-gray-600'
-                        }`}
-                      >
-                        <Icon size={14} /> {tab.label}
-                      </button>
-                    );
-                  })}
-                </div>
-                <button
-                  onClick={handleDownloadPDF}
-                  className="flex items-center gap-1.5 px-3 py-2 text-sm text-primary-500 border border-primary-200 rounded-lg hover:bg-primary-50 transition-colors"
-                >
-                  <FiDownload size={14} /> PDF
-                </button>
-              </div>
-
-              {/* Tab Content */}
-              <div className="bg-white rounded-2xl border border-gray-100 p-6">
-                {activeTab === 'practice' ? (
-                  practiceCards.length > 0 ? (
-                    <div className="space-y-3">
-                      <p className="text-xs text-gray-400 mb-2">Click each card to reveal the answer</p>
-                      {practiceCards.map((card, i) => (
-                        <PracticeCard key={i} card={card} index={i} />
-                      ))}
-                    </div>
-                  ) : (
-                    <ChatMarkdown content={sections.practice || 'No practice questions available.'} />
-                  )
+            <div className="surface p-6">
+              {activeTab === 'practice' ? (
+                practiceCards.length > 0 ? (
+                  <div className="space-y-3">
+                    <p className="text-[11.5px] text-gray-400 mb-2">Tap each card to reveal the answer</p>
+                    {practiceCards.map((card, i) => (
+                      <PracticeCard key={i} card={card} index={i} />
+                    ))}
+                  </div>
                 ) : (
-                  <ChatMarkdown content={sections[activeTab] || 'Content not available for this section.'} />
-                )}
-              </div>
-            </motion.div>
-          )}
-        </motion.div>
+                  <ChatMarkdown content={sections.practice || 'No practice questions available.'} />
+                )
+              ) : (
+                <ChatMarkdown content={sections[activeTab] || 'Content not available for this section.'} />
+              )}
+            </div>
+          </motion.div>
+        )}
       </div>
     </AppLayout>
   );

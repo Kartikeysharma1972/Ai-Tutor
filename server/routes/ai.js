@@ -31,10 +31,27 @@ const upload = multer({
   },
 });
 
+// Placeholder pattern injected when an image/file is attached.
+// Don't send these stubs back to the model on later turns — they have no signal.
+const PLACEHOLDER_RE = /^\[(?:Image uploaded|File:[^\]]*)\]\s*/;
+
+function stripPlaceholders(messages) {
+  return messages
+    .map(m => {
+      if (m.role !== 'user' || typeof m.content !== 'string') return m;
+      const stripped = m.content.replace(PLACEHOLDER_RE, '').trim();
+      return stripped ? { ...m, content: stripped } : null;
+    })
+    .filter(Boolean);
+}
+
 async function chatWithGroq(systemPrompt, messages, options = {}) {
+  const cleaned = options.skipPlaceholderFilter ? messages : stripPlaceholders(messages);
+  // Drop any leading assistant message (model expects user-first after system)
+  const trimmed = cleaned.length && cleaned[0].role === 'assistant' ? cleaned.slice(1) : cleaned;
   const formattedMessages = [
     { role: 'system', content: systemPrompt },
-    ...messages.map(m => ({ role: m.role, content: m.content })),
+    ...trimmed.map(m => ({ role: m.role, content: m.content })),
   ];
 
   const response = await getGroq().chat.completions.create({
@@ -178,10 +195,11 @@ router.post('/concept-explainer/file', authMiddleware, upload.single('file'), as
     } else if (mime === 'text/plain') {
       fileContent = fs.readFileSync(req.file.path, 'utf-8');
     } else if (mime === 'application/msword' || mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-      fileContent = fs.readFileSync(req.file.path, 'utf-8');
+      fs.unlinkSync(req.file.path);
+      return res.status(400).json({ error: 'Word document support is coming soon. Please convert to PDF or paste the text directly.' });
     } else {
       fs.unlinkSync(req.file.path);
-      return res.status(400).json({ error: 'Unsupported file type. Please upload PDF, TXT, or DOC files.' });
+      return res.status(400).json({ error: 'Unsupported file type. Please upload PDF or TXT files.' });
     }
 
     fs.unlinkSync(req.file.path);
@@ -254,7 +272,25 @@ router.post('/summarize', authMiddleware, upload.single('file'), async (req, res
           req.file.mimetype
         );
         fs.unlinkSync(req.file.path);
-        return res.json({ response: aiResponse });
+
+        let imgSession;
+        if (sessionId) {
+          imgSession = await Session.findOne({ _id: sessionId, userId: req.userId });
+        }
+        if (!imgSession) {
+          imgSession = new Session({
+            userId: req.userId,
+            tool: 'document-summarizer',
+            title: `Image — ${mode || 'full'}`,
+            messages: [],
+            metadata: { summarizationMode: mode },
+          });
+        }
+        imgSession.messages.push({ role: 'user', content: `[Image uploaded] Mode: ${mode}` });
+        imgSession.messages.push({ role: 'assistant', content: aiResponse });
+        await imgSession.save();
+
+        return res.json({ response: aiResponse, sessionId: imgSession._id });
       }
       fs.unlinkSync(req.file.path);
     }
@@ -338,7 +374,8 @@ router.post('/project-ideas', authMiddleware, async (req, res) => {
 function validateQuestionDiversity(questions, grade) {
   const expectedTypes = getExpectedTypes(grade);
   const typesUsed = new Set(questions.map(q => q.type).filter(Boolean));
-  const minTypesRequired = Math.min(3, expectedTypes.length);
+  // Demand at least half of the expected types (capped at 5) — prevents "all MCQ" tests
+  const minTypesRequired = Math.min(5, Math.max(3, Math.ceil(expectedTypes.length / 2)));
   return typesUsed.size >= minTypesRequired;
 }
 
@@ -383,12 +420,12 @@ router.post('/mock-test/generate', authMiddleware, async (req, res) => {
     const systemPrompt = buildSystemPrompt(user.grade, 'mock-test', { subject, chapters });
 
     let questions = [];
-    const maxAttempts = 2;
+    const maxAttempts = 3;
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const aiResponse = await chatWithGroq(systemPrompt, [
         { role: 'user', content: `Generate a mock test for ${subject}, chapters: ${chapters?.join(', ') || 'All chapters'}. You MUST use a variety of question types as specified. Return ONLY valid JSON: {"questions": [...]}` },
-      ], { jsonMode: true, temperature: attempt === 0 ? 0.8 : 0.9, maxTokens: 8000 });
+      ], { jsonMode: true, temperature: 0.45 + (attempt * 0.15), maxTokens: 8000 });
 
       try {
         const parsed = JSON.parse(aiResponse);
@@ -432,9 +469,17 @@ router.post('/mock-test/submit', authMiddleware, async (req, res) => {
     const letterFromAnswer = (answer, options) => {
       if (!answer || !Array.isArray(options)) return null;
       const a = normalize(answer);
-      if (/^[a-d]$/.test(a)) return a.toUpperCase();
+      if (/^[a-j]$/.test(a)) return a.toUpperCase();
       const idx = options.findIndex(o => normalize(o) === a);
       return idx >= 0 ? String.fromCharCode(65 + idx) : null;
+    };
+    // For multi-select, AI may give correctAnswer as option text instead of letters
+    // (or vice versa from student). Convert both sides to canonical letter sets.
+    const lettersFromList = (str, options) => {
+      if (!str) return '';
+      const parts = String(str).split(',').map(s => s.trim()).filter(Boolean);
+      const letters = parts.map(p => letterFromAnswer(p, options)).filter(Boolean);
+      return letters.sort().join(',').toUpperCase();
     };
     const optionsCompare = (student, correct, options) => {
       if (normalize(student) === normalize(correct)) return true;
@@ -448,7 +493,13 @@ router.post('/mock-test/submit', authMiddleware, async (req, res) => {
       const type = q.type || 'mcq';
       if (type === 'sequence-ordering') {
         isCorrect = normalizeOrdered(q.studentAnswer) === normalizeOrdered(q.correctAnswer);
-      } else if (['match-following', 'matrix-match', 'multi-select'].includes(type)) {
+      } else if (type === 'multi-select') {
+        // Try canonical letter-set compare first (handles AI returning option text)
+        const sLetters = lettersFromList(q.studentAnswer, q.options);
+        const cLetters = lettersFromList(q.correctAnswer, q.options);
+        if (sLetters && cLetters) isCorrect = sLetters === cLetters;
+        else isCorrect = normalizeSet(q.studentAnswer) === normalizeSet(q.correctAnswer);
+      } else if (['match-following', 'matrix-match'].includes(type)) {
         isCorrect = normalizeSet(q.studentAnswer) === normalizeSet(q.correctAnswer);
       } else if (['numerical', 'integer-type'].includes(type)) {
         const s = normalizeNumber(q.studentAnswer);

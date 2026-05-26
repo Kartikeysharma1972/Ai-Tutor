@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FiRefreshCw } from 'react-icons/fi';
+import { FiRefreshCw, FiLayers, FiCheck } from 'react-icons/fi';
 import AppLayout from '../components/AppLayout';
+import PageHeader from '../components/PageHeader';
 import ChatMarkdown from '../components/ChatMarkdown';
 import { useAuth } from '../contexts/AuthContext';
 import { aiAPI, curriculumAPI } from '../utils/api';
@@ -57,94 +58,110 @@ export default function ProjectGenerator() {
 
   return (
     <AppLayout activeTool="project-generator">
-      <div className="p-6 max-w-4xl mx-auto">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-xl font-bold text-gray-800 mb-1">Project Idea Generator</h1>
-          <p className="text-sm text-gray-400 mb-6">Get AI-generated project ideas tailored to your Class {user?.grade} syllabus</p>
+      <div className="p-6 md:p-8 max-w-4xl mx-auto">
+        <PageHeader
+          icon={FiLayers}
+          eyebrow="Project Generator"
+          title="4 sharp project ideas, on demand."
+          subtitle={`Class ${user?.grade} · We mix Easy / Medium / Hard and give you materials, steps, time estimate, and the CBSE connection.`}
+        />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Subject *</label>
-              <select
-                value={subject} onChange={e => setSubject(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 outline-none text-sm bg-white"
-              >
-                <option value="">Select subject</option>
-                {subjects.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Project Type</label>
-              <select
-                value={projectType} onChange={e => setProjectType(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 outline-none text-sm bg-white"
-              >
-                <option value="">Any type</option>
-                {projectTypes.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
+        <div className="mt-7 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-[12.5px] font-semibold text-gray-700 mb-1.5">Subject <span className="text-rose-500">*</span></label>
+            <select
+              value={subject} onChange={e => setSubject(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 outline-none text-sm bg-white"
+            >
+              <option value="">Select subject</option>
+              {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
           </div>
+          <div>
+            <label className="block text-[12.5px] font-semibold text-gray-700 mb-1.5">Project Type</label>
+            <select
+              value={projectType} onChange={e => setProjectType(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 outline-none text-sm bg-white"
+            >
+              <option value="">Any type</option>
+              {projectTypes.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+        </div>
 
-          {subject && chapters.length > 0 && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-600 mb-2">
-                Pick a Topic from Class {user?.grade} {subject}
+        {subject && chapters.length > 0 && (
+          <div className="mt-5">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-[12.5px] font-semibold text-gray-700">
+                Pick a chapter / topic
               </label>
-              <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-3 bg-gray-50 rounded-xl border border-gray-100">
-                {chapters.map((ch, i) => (
+              <button
+                onClick={() => setShowCustomTopic(v => !v)}
+                className="text-[11.5px] text-primary-600 font-semibold hover:underline"
+              >
+                {showCustomTopic ? 'Hide custom topic' : 'Or type a custom topic'}
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2 max-h-52 overflow-y-auto p-3 bg-gray-50/60 rounded-2xl border border-gray-100">
+              {chapters.map((ch, i) => {
+                const selected = selectedChapter === ch;
+                return (
                   <button
                     key={i}
                     onClick={() => { setSelectedChapter(ch); setTopic(''); }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      selectedChapter === ch
-                        ? 'bg-primary-400 text-white shadow-sm'
-                        : 'bg-white text-gray-600 border border-gray-200 hover:border-primary-300 hover:text-primary-500'
+                    className={`px-3 py-1.5 rounded-xl text-[12px] font-medium transition-all flex items-center gap-1.5 ${
+                      selected
+                        ? 'bg-primary-500 text-white shadow-sm'
+                        : 'bg-white text-gray-700 border border-gray-100 hover:border-primary-300 hover:text-primary-600'
                     }`}
                   >
+                    {selected && <FiCheck size={11} />}
                     {ch}
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
-          )}
-
-          <div className="mb-4">
-            <button
-              onClick={() => setShowCustomTopic(!showCustomTopic)}
-              className="text-xs text-primary-400 hover:text-primary-500 font-medium mb-1"
-            >
-              {showCustomTopic ? 'Hide custom topic' : 'Or type a custom topic'}
-            </button>
             {showCustomTopic && (
               <input
-                type="text" value={topic} onChange={e => { setTopic(e.target.value); if (e.target.value) setSelectedChapter(''); }}
-                placeholder="e.g., Photosynthesis, Trigonometry..."
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 outline-none text-sm mt-1"
+                type="text" value={topic}
+                onChange={e => { setTopic(e.target.value); if (e.target.value) setSelectedChapter(''); }}
+                placeholder="e.g., Renewable energy in everyday life"
+                className="w-full mt-3 px-4 py-2.5 rounded-xl border border-gray-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 outline-none text-sm"
               />
             )}
           </div>
+        )}
 
-          <button
-            onClick={handleGenerate} disabled={loading}
-            className="w-full py-3 bg-primary-400 text-white rounded-xl font-semibold hover:bg-primary-500 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {loading ? 'Generating...' : <><FiRefreshCw /> Generate Ideas{finalTopic ? ` for "${finalTopic}"` : ''}</>}
-          </button>
+        <button
+          onClick={handleGenerate} disabled={loading || !subject}
+          className="w-full mt-6 py-3 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-xl font-semibold hover:opacity-95 transition-opacity disabled:opacity-40 flex items-center justify-center gap-2 shadow-[0_10px_28px_-12px_rgba(46,134,193,0.5)]"
+        >
+          {loading ? <><FiRefreshCw className="animate-spin" /> Generating…</> : <><FiRefreshCw /> Generate 4 Ideas{finalTopic ? ` · ${finalTopic}` : ''}</>}
+        </button>
 
-          {result && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-6 bg-white rounded-2xl border border-gray-100 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-700">Project Ideas</h3>
-                <button onClick={handleGenerate} disabled={loading} className="text-sm text-primary-400 hover:text-primary-500 flex items-center gap-1">
-                  <FiRefreshCw className={loading ? 'animate-spin' : ''} /> Regenerate
-                </button>
-              </div>
-              <div>
-                <ChatMarkdown content={result} />
-              </div>
-            </motion.div>
-          )}
-        </motion.div>
+        {loading && (
+          <div className="mt-6 surface p-6 space-y-3">
+            <div className="skeleton h-4 w-1/2" />
+            <div className="skeleton h-3 w-full" />
+            <div className="skeleton h-3 w-5/6" />
+            <div className="skeleton h-3 w-2/3" />
+          </div>
+        )}
+
+        {result && (
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mt-6 surface p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-display font-bold text-gray-900">Project Ideas</h3>
+              <button
+                onClick={handleGenerate} disabled={loading}
+                className="text-[12.5px] text-primary-600 font-semibold hover:text-primary-700 flex items-center gap-1.5"
+              >
+                <FiRefreshCw className={loading ? 'animate-spin' : ''} size={12} /> Regenerate
+              </button>
+            </div>
+            <ChatMarkdown content={result} />
+          </motion.div>
+        )}
       </div>
     </AppLayout>
   );
