@@ -39,6 +39,7 @@ export const aiAPI = {
   generateMockTest: (data) => api.post('/ai/mock-test/generate', data),
   submitMockTest: (data) => api.post('/ai/mock-test/submit', data),
   focusArea: (data) => api.post('/ai/focus-area', data),
+  searchImage: (query) => api.get('/ai/search-image', { params: { q: query } }),
 };
 
 export const sessionAPI = {

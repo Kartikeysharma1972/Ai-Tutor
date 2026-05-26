@@ -8,6 +8,7 @@ import User from '../models/User.js';
 import Session from '../models/Session.js';
 import TestAttempt from '../models/TestAttempt.js';
 import { buildSystemPrompt, getMockTestConfig, getExpectedTypes } from '../utils/gradePrompts.js';
+import { searchWikipediaImage } from '../utils/imageSearch.js';
 
 const router = Router();
 let groq;
@@ -487,6 +488,18 @@ router.post('/focus-area', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error('Focus area error:', err);
     res.status(500).json({ error: 'AI service error' });
+  }
+});
+
+// ---------- IMAGE SEARCH ----------
+router.get('/search-image', authMiddleware, async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q) return res.json({ image: null });
+    const image = await searchWikipediaImage(q);
+    res.json({ image });
+  } catch {
+    res.json({ image: null });
   }
 });
 

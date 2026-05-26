@@ -14,17 +14,10 @@ const levels = [
   { key: 'advanced', label: 'Advanced', desc: 'Competitive level' },
 ];
 
-async function fetchWikipediaImage(query) {
+async function fetchImage(query) {
   try {
-    const q = encodeURIComponent(query.substring(0, 80).trim());
-    const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${q}`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data.thumbnail?.source) {
-        return { url: data.thumbnail.source.replace(/\/\d+px-/, '/500px-'), alt: data.title };
-      }
-    }
-    return null;
+    const res = await aiAPI.searchImage(query.substring(0, 100).trim());
+    return res.data.image || null;
   } catch {
     return null;
   }
@@ -215,8 +208,9 @@ export default function ConceptExplainer() {
       const aiText = response.data.response;
       setMessages(prev => [...prev, { role: 'assistant', content: aiText }]);
 
-      if (user?.grade <= 8 && userMessage) {
-        fetchWikipediaImage(userMessage).then(img => {
+      if (userMessage) {
+        const searchQuery = chapter ? `${chapter} ${subject || ''}` : userMessage;
+        fetchImage(searchQuery).then(img => {
           if (img) {
             const imgMd = `\n\n![${img.alt}](${img.url})\n`;
             setMessages(prev => {

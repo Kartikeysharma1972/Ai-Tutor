@@ -15,9 +15,12 @@ const projectTypes = [
 export default function ProjectGenerator() {
   const { user } = useAuth();
   const [subjects, setSubjects] = useState([]);
+  const [chapters, setChapters] = useState([]);
   const [subject, setSubject] = useState('');
+  const [selectedChapter, setSelectedChapter] = useState('');
   const [projectType, setProjectType] = useState('');
   const [topic, setTopic] = useState('');
+  const [showCustomTopic, setShowCustomTopic] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState('');
 
@@ -27,12 +30,23 @@ export default function ProjectGenerator() {
     }
   }, [user?.grade]);
 
+  useEffect(() => {
+    if (subject && user?.grade) {
+      curriculumAPI.getChapters(user.grade, subject).then(res => setChapters(res.data.chapters)).catch(() => {});
+      setSelectedChapter('');
+    } else {
+      setChapters([]);
+    }
+  }, [subject, user?.grade]);
+
+  const finalTopic = topic.trim() || selectedChapter || '';
+
   const handleGenerate = async () => {
     if (!subject) return toast.error('Please select a subject');
     setLoading(true);
     setResult('');
     try {
-      const res = await aiAPI.projectIdeas({ subject, projectType, topic });
+      const res = await aiAPI.projectIdeas({ subject, projectType, topic: finalTopic });
       setResult(res.data.response);
     } catch {
       toast.error('Failed to generate ideas');
@@ -46,7 +60,7 @@ export default function ProjectGenerator() {
       <div className="p-6 max-w-4xl mx-auto">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="text-xl font-bold text-gray-800 mb-1">Project Idea Generator</h1>
-          <p className="text-sm text-gray-400 mb-6">Get AI-generated project ideas tailored to your grade and subject</p>
+          <p className="text-sm text-gray-400 mb-6">Get AI-generated project ideas tailored to your Class {user?.grade} syllabus</p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
@@ -71,20 +85,50 @@ export default function ProjectGenerator() {
             </div>
           </div>
 
+          {subject && chapters.length > 0 && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-600 mb-2">
+                Pick a Topic from Class {user?.grade} {subject}
+              </label>
+              <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-3 bg-gray-50 rounded-xl border border-gray-100">
+                {chapters.map((ch, i) => (
+                  <button
+                    key={i}
+                    onClick={() => { setSelectedChapter(ch); setTopic(''); }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      selectedChapter === ch
+                        ? 'bg-primary-400 text-white shadow-sm'
+                        : 'bg-white text-gray-600 border border-gray-200 hover:border-primary-300 hover:text-primary-500'
+                    }`}
+                  >
+                    {ch}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-600 mb-1">Specific Topic (optional)</label>
-            <input
-              type="text" value={topic} onChange={e => setTopic(e.target.value)}
-              placeholder="e.g., Photosynthesis, Trigonometry..."
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 outline-none text-sm"
-            />
+            <button
+              onClick={() => setShowCustomTopic(!showCustomTopic)}
+              className="text-xs text-primary-400 hover:text-primary-500 font-medium mb-1"
+            >
+              {showCustomTopic ? 'Hide custom topic' : 'Or type a custom topic'}
+            </button>
+            {showCustomTopic && (
+              <input
+                type="text" value={topic} onChange={e => { setTopic(e.target.value); if (e.target.value) setSelectedChapter(''); }}
+                placeholder="e.g., Photosynthesis, Trigonometry..."
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 outline-none text-sm mt-1"
+              />
+            )}
           </div>
 
           <button
             onClick={handleGenerate} disabled={loading}
             className="w-full py-3 bg-primary-400 text-white rounded-xl font-semibold hover:bg-primary-500 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {loading ? 'Generating...' : <><FiRefreshCw /> Generate Ideas</>}
+            {loading ? 'Generating...' : <><FiRefreshCw /> Generate Ideas{finalTopic ? ` for "${finalTopic}"` : ''}</>}
           </button>
 
           {result && (
