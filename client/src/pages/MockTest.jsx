@@ -42,11 +42,23 @@ const typeLabels = {
 };
 function formatType(type) { return typeLabels[type] || type; }
 
+function parseMatches(formatted) {
+  if (!formatted || typeof formatted !== 'string') return {};
+  const out = {};
+  formatted.split(',').forEach(pair => {
+    const [idx, val] = pair.split('-').map(s => (s || '').trim());
+    const n = parseInt(idx, 10);
+    if (Number.isNaN(n) || !val || val === '?') return;
+    out[n - 1] = val;
+  });
+  return out;
+}
+
 function MatchFollowingInput({ question, current, answers, handleAnswer }) {
   const pairs = question.pairs || [];
   const leftItems = pairs.map(p => p.left);
   const rightItems = pairs.map(p => p.right);
-  const currentMatches = answers[current] ? (typeof answers[current] === 'object' ? answers[current] : {}) : {};
+  const currentMatches = parseMatches(answers[current]);
 
   const updateMatch = (leftIdx, rightVal) => {
     const updated = { ...currentMatches, [leftIdx]: rightVal };
@@ -113,30 +125,42 @@ function SequenceOrderingInput({ question, current, answers, handleAnswer }) {
 }
 
 function MultiSelectInput({ question, current, answers, handleAnswer }) {
-  const selected = answers[current] ? answers[current].split(', ').filter(Boolean) : [];
+  const options = question.options || [];
+  const selected = answers[current]
+    ? String(answers[current]).split(',').map(s => s.trim()).filter(Boolean)
+    : [];
 
-  const toggleOption = (opt) => {
-    const updated = selected.includes(opt) ? selected.filter(s => s !== opt) : [...selected, opt];
+  const toggleOption = (letter) => {
+    const updated = selected.includes(letter)
+      ? selected.filter(s => s !== letter)
+      : [...selected, letter];
+    updated.sort();
     handleAnswer(current, updated.join(', '));
   };
 
   return (
     <div className="space-y-3">
       <p className="text-xs text-gray-400 mb-1">Select all correct answers:</p>
-      {(question.options || []).map((opt, i) => (
-        <button
-          key={i}
-          onClick={() => toggleOption(opt)}
-          className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all text-sm ${
-            selected.includes(opt)
-              ? 'border-primary-400 bg-primary-50 text-primary-700 font-medium'
-              : 'border-gray-100 hover:border-primary-200 text-gray-600'
-          }`}
-        >
-          <span className="inline-flex items-center justify-center w-5 h-5 rounded border mr-3 text-xs ${selected.includes(opt) ? 'bg-primary-400 text-white border-primary-400' : 'border-gray-300'}">{selected.includes(opt) ? '✓' : ''}</span>
-          {String.fromCharCode(65 + i)}. {opt}
-        </button>
-      ))}
+      {options.map((opt, i) => {
+        const letter = String.fromCharCode(65 + i);
+        const isSelected = selected.includes(letter);
+        return (
+          <button
+            key={i}
+            onClick={() => toggleOption(letter)}
+            className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all text-sm ${
+              isSelected
+                ? 'border-primary-400 bg-primary-50 text-primary-700 font-medium'
+                : 'border-gray-100 hover:border-primary-200 text-gray-600'
+            }`}
+          >
+            <span className={`inline-flex items-center justify-center w-5 h-5 rounded border mr-3 text-xs ${isSelected ? 'bg-primary-400 text-white border-primary-400' : 'border-gray-300'}`}>
+              {isSelected ? '✓' : ''}
+            </span>
+            {letter}. {opt}
+          </button>
+        );
+      })}
     </div>
   );
 }

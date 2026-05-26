@@ -355,6 +355,24 @@ function fixQuestionTypes(questions, grade) {
   });
 }
 
+function sanitizeQuestions(questions) {
+  return questions.filter(q => {
+    if (!q || typeof q.question !== 'string' || !q.question.trim()) return false;
+    if (!q.correctAnswer && q.correctAnswer !== 0) return false;
+    if (['match-following', 'matrix-match'].includes(q.type)) {
+      if (!Array.isArray(q.pairs) || q.pairs.length < 2) return false;
+      if (!q.pairs.every(p => p && p.left && p.right)) return false;
+    }
+    if (q.type === 'sequence-ordering') {
+      if (!Array.isArray(q.items) || q.items.length < 3) return false;
+    }
+    if (['mcq', 'true-false', 'multi-select', 'assertion-reason', 'case-study', 'hots', 'code-output'].includes(q.type)) {
+      if (!Array.isArray(q.options) || q.options.length < 2) return false;
+    }
+    return true;
+  });
+}
+
 router.post('/mock-test/generate', authMiddleware, async (req, res) => {
   try {
     const { subject, chapters } = req.body;
@@ -381,8 +399,9 @@ router.post('/mock-test/generate', authMiddleware, async (req, res) => {
       }
 
       questions = fixQuestionTypes(questions, user.grade);
+      questions = sanitizeQuestions(questions);
 
-      if (validateQuestionDiversity(questions, user.grade)) break;
+      if (questions.length >= Math.floor(config.totalQuestions * 0.8) && validateQuestionDiversity(questions, user.grade)) break;
     }
 
     res.json({ questions, config });
@@ -404,13 +423,39 @@ router.post('/mock-test/submit', authMiddleware, async (req, res) => {
     const topicAccuracy = {};
 
     const normalize = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
-    const normalizeList = (s) => normalize(s).split(',').map(x => x.trim()).sort().join(',');
+    const normalizeSet = (s) => normalize(s).split(',').map(x => x.trim()).filter(Boolean).sort().join(',');
+    const normalizeOrdered = (s) => normalize(s).split(',').map(x => x.trim()).filter(Boolean).join(',');
+    const normalizeNumber = (s) => {
+      const m = String(s || '').replace(/,/g, '').match(/-?\d+(?:\.\d+)?/);
+      return m ? parseFloat(m[0]) : NaN;
+    };
+    const letterFromAnswer = (answer, options) => {
+      if (!answer || !Array.isArray(options)) return null;
+      const a = normalize(answer);
+      if (/^[a-d]$/.test(a)) return a.toUpperCase();
+      const idx = options.findIndex(o => normalize(o) === a);
+      return idx >= 0 ? String.fromCharCode(65 + idx) : null;
+    };
+    const optionsCompare = (student, correct, options) => {
+      if (normalize(student) === normalize(correct)) return true;
+      const sl = letterFromAnswer(student, options);
+      const cl = letterFromAnswer(correct, options);
+      return !!(sl && cl && sl === cl);
+    };
 
     const gradedQuestions = questions.map(q => {
       let isCorrect = false;
       const type = q.type || 'mcq';
-      if (['match-following', 'matrix-match', 'multi-select', 'sequence-ordering'].includes(type)) {
-        isCorrect = normalizeList(q.studentAnswer) === normalizeList(q.correctAnswer);
+      if (type === 'sequence-ordering') {
+        isCorrect = normalizeOrdered(q.studentAnswer) === normalizeOrdered(q.correctAnswer);
+      } else if (['match-following', 'matrix-match', 'multi-select'].includes(type)) {
+        isCorrect = normalizeSet(q.studentAnswer) === normalizeSet(q.correctAnswer);
+      } else if (['numerical', 'integer-type'].includes(type)) {
+        const s = normalizeNumber(q.studentAnswer);
+        const c = normalizeNumber(q.correctAnswer);
+        isCorrect = !Number.isNaN(s) && !Number.isNaN(c) && Math.abs(s - c) < 0.01;
+      } else if (Array.isArray(q.options) && q.options.length > 0) {
+        isCorrect = optionsCompare(q.studentAnswer, q.correctAnswer, q.options);
       } else {
         isCorrect = normalize(q.studentAnswer) === normalize(q.correctAnswer);
       }
@@ -464,24 +509,35 @@ router.post('/mock-test/submit', authMiddleware, async (req, res) => {
 router.post('/focus-area', authMiddleware, async (req, res) => {
   try {
     const { subject, chapter, topic } = req.body;
+    if (!chapter) return res.status(400).json({ error: 'Chapter is required' });
     const user = await User.findById(req.userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    const systemPrompt = buildSystemPrompt(user.grade, 'focus-area', { subject, chapter, topic });
+    const cleanTopic = (topic || '').trim();
+    const systemPrompt = buildSystemPrompt(user.grade, 'focus-area', { subject, chapter, topic: cleanTopic });
+
+    const userMessage = cleanTopic
+      ? `Provide complete focus area study material for: "${cleanTopic}" (Chapter context: ${chapter}, Subject: ${subject})`
+      : `Provide complete focus area study material covering the ENTIRE chapter "${chapter}" in ${subject}. Cover every major subtopic comprehensively.`;
 
     const aiResponse = await chatWithGroq(systemPrompt, [
-      { role: 'user', content: `Provide complete focus area study material for: ${topic} (Chapter: ${chapter}, Subject: ${subject})` },
+      { role: 'user', content: userMessage },
     ], { maxTokens: 8000 });
+
+    const title = cleanTopic ? `Focus: ${cleanTopic}` : `Focus: ${chapter}`;
+    const userMsgRecord = cleanTopic
+      ? `Focus Area — ${subject} > ${chapter} > ${cleanTopic}`
+      : `Focus Area — ${subject} > ${chapter} (full chapter)`;
 
     const session = await Session.create({
       userId: req.userId,
       tool: 'exam-prep',
-      title: `Focus: ${topic}`,
+      title,
       messages: [
-        { role: 'user', content: `Focus Area — ${subject} > ${chapter} > ${topic}` },
+        { role: 'user', content: userMsgRecord },
         { role: 'assistant', content: aiResponse },
       ],
-      metadata: { subject, chapter, topic },
+      metadata: { subject, chapter, topic: cleanTopic },
     });
 
     res.json({ response: aiResponse, sessionId: session._id });

@@ -477,28 +477,45 @@ IMPORTANT:
 - Return ONLY valid JSON: {"questions": [...]}
 - You MUST follow the MANDATORY type distribution above — NOT all MCQ
 - Make questions CBSE-aligned and grade-appropriate
-- For "match-following" and "matrix-match", provide exactly 4-5 pairs in the "pairs" array
-- For "sequence-ordering", provide 4-6 items in the "items" array (shuffled, not in correct order)
-- For "assertion-reason", always provide both Assertion and Reason in the question text
-- For "multi-select", correctAnswer should list all correct options separated by ", "
-- correctAnswer must exactly match one of the options (for MCQ types) or be the precise answer
-- Each question MUST have a "type" field matching one of the types listed above
+- For "match-following" and "matrix-match": provide exactly 4-5 pairs in the "pairs" array, and correctAnswer MUST be in the form "1-B, 2-A, 3-D, 4-C" mapping each left index (1-based) to the right item's letter (A, B, C…). DO NOT use option text in correctAnswer for these types.
+- For "sequence-ordering": provide 4-6 items in the "items" array SHUFFLED (NOT in correct order). correctAnswer MUST list the items separated by ", " IN THE CORRECT ORDER.
+- For "assertion-reason": always include both Assertion and Reason in the question text on separate lines.
+- For "multi-select": correctAnswer MUST be the comma-separated LETTERS of correct options (e.g. "A, C") — NOT option text.
+- For MCQ / true-false / case-study / hots / code-output: correctAnswer must be the EXACT option text (string-identical to one of "options").
+- For numerical / integer-type: correctAnswer must be a plain number string with NO units (e.g. "42" not "42 kg").
+- Each question MUST have: question, type, correctAnswer, difficulty, topic, explanation, studyNotes.
+- topic should be a SHORT phrase (3-6 words) describing the concept tested — used for weak-area analytics, so make topics CONSISTENT (don't write "Photosynthesis basics" once and "Basics of photosynthesis" elsewhere — pick one phrasing per concept).
+- Question stems must be CLEAR and SELF-CONTAINED. Don't reference figures or external diagrams that aren't included.
+- Every question must have ONE objectively correct answer — no ambiguous wording, no two equally valid options.
+- Distribute questions across the provided chapters — don't pile most questions onto one chapter.
+- explanation: 1-2 sentences explaining WHY the correct answer is correct.
+- studyNotes: 1-2 sentences of revision-style notes the student should remember.
 `;
   }
 
   if (tool === 'focus-area') {
     const textbook = getTextbookInfo(grade, extra.subject);
+    const hasTopic = !!(extra.topic && String(extra.topic).trim());
+    const studyTarget = hasTopic ? `"${extra.topic}"` : `the entire chapter "${extra.chapter}"`;
     systemPrompt += `
 TOOL: Focus Area — Deep Study
 SUBJECT: ${extra.subject}
 CHAPTER: ${extra.chapter}
-TOPIC: ${extra.topic}
+${hasTopic ? `TOPIC: ${extra.topic}` : 'TOPIC: (not specified — cover the full chapter)'}
 ${textbook ? `REFERENCE TEXTBOOK: ${textbook} — Align study material with the approach, terminology, and depth of this textbook.` : ''}
+
+${hasTopic
+  ? `SCOPE DECISION (be smart about this):
+- If "${extra.topic}" is a subtopic or natural part of the chapter "${extra.chapter}", focus tightly on that subtopic and use the chapter as supporting context.
+- If "${extra.topic}" is NOT part of the chapter (the student picked an unrelated topic, possibly from another chapter or subject), prioritize the topic itself — provide complete study material on "${extra.topic}" and only mention the chapter if it provides useful background.
+- Either way, deliver useful, comprehensive study material — never refuse because the topic doesn't match.`
+  : `SCOPE: Cover the ENTIRE chapter "${extra.chapter}" comprehensively. Walk through every major subtopic, key formulas/definitions, and exam-worthy points.`
+}
 
 Provide comprehensive study material with these sections:
 
 ## 📚 Complete Concept Explanation
-Full explanation of "${extra.topic}" calibrated to Class ${grade} level. Cover all subtopics.
+Full explanation of ${studyTarget} calibrated to Class ${grade} level. ${hasTopic ? 'Cover all subtopics relevant to this topic.' : 'Cover every major subtopic in the chapter, in a logical order.'}
 
 ## 📐 Key Formulas & Definitions
 ${grade >= 6 ? 'List all relevant formulas, theorems, and definitions.' : 'List key terms and their simple meanings.'}
@@ -507,10 +524,10 @@ ${grade >= 6 ? 'List all relevant formulas, theorems, and definitions.' : 'List 
 Create a text-based mind map / concept tree showing how subtopics connect.
 
 ## 📝 Frequently Asked Exam Questions
-5-6 questions that commonly appear in CBSE exams on this topic, each with a detailed answer.
+${hasTopic ? '5-6' : '8-10'} questions that commonly appear in CBSE exams on ${hasTopic ? 'this topic' : 'this chapter'}, each with a detailed answer.
 
 ## ✍️ Practice Questions
-5-6 practice questions with answers hidden (format: Q: question, then A: answer on next line).
+${hasTopic ? '5-6' : '8-10'} practice questions with answers (format: "Q: question" on one line, then "A: answer" on the next).
 
 Use markdown formatting. Be thorough and exam-focused.
 `;

@@ -119,7 +119,6 @@ export default function FocusArea() {
 
   const handleGenerate = async () => {
     if (!selectedChapter) return toast.error('Select a chapter');
-    if (!topic.trim()) return toast.error('Enter a specific topic');
     setLoading(true);
     setResult('');
     setActiveTab('concepts');
@@ -136,8 +135,9 @@ export default function FocusArea() {
   const handleDownloadPDF = () => {
     if (!result) return;
     const win = window.open('', '_blank');
+    const heading = topic.trim() ? topic.trim() : 'Full Chapter';
     win.document.write(`
-      <html><head><title>Focus Area — ${topic}</title>
+      <html><head><title>Focus Area — ${heading}</title>
       <style>
         body { font-family: Arial, sans-serif; padding: 20px; color: #333; line-height: 1.6; }
         h1 { color: #5BA4CF; font-size: 20px; }
@@ -150,7 +150,7 @@ export default function FocusArea() {
         td, th { padding: 6px 10px; border: 1px solid #ddd; font-size: 12px; }
       </style></head><body>
       <h1>${subject} — ${selectedChapter}</h1>
-      <h2>${topic}</h2>
+      <h2>${heading}</h2>
       <div>${result.replace(/\n/g, '<br>')}</div>
       </body></html>
     `);
@@ -180,12 +180,17 @@ export default function FocusArea() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Specific Topic *</label>
+              <label className="block text-sm font-medium text-gray-600 mb-1">
+                Specific Topic <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
               <input
                 type="text" value={topic} onChange={e => setTopic(e.target.value)}
-                placeholder="e.g., Law of Conservation of Mass"
+                placeholder="Leave blank to cover the whole chapter"
                 className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-primary-400 outline-none text-sm"
               />
+              <p className="text-[11px] text-gray-400 mt-1">
+                Tip: any topic works — even one from a different chapter or subject.
+              </p>
             </div>
           </div>
 
