@@ -214,7 +214,7 @@ export default function MockTest() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { subject, chapters } = location.state || {};
+  const { subject, chapters, questionType, questionCount } = location.state || {};
 
   const [phase, setPhase] = useState('loading');
   const [questions, setQuestions] = useState([]);
@@ -236,7 +236,12 @@ export default function MockTest() {
   const generateTest = async () => {
     setPhase('loading');
     try {
-      const res = await aiAPI.generateMockTest({ subject, chapters });
+      const res = await aiAPI.generateMockTest({
+        subject,
+        chapters,
+        questionType: questionType || null,
+        questionCount: questionCount || null,
+      });
       setQuestions(res.data.questions.map(q => ({ ...q, studentAnswer: null })));
       setConfig(res.data.config);
       setTimeLeft(res.data.config.totalTime * 60);

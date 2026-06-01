@@ -13,7 +13,7 @@ const toolNav = [
   { path: '/dashboard', icon: FiHome, label: 'Dashboard' },
   { path: '/concept-explainer', icon: FiBookOpen, label: 'Concept Explainer', tool: 'concept-explainer' },
   { path: '/document-summarizer', icon: FiFileText, label: 'Document Summarizer', tool: 'document-summarizer' },
-  { path: '/project-generator', icon: FiLayers, label: 'Project Generator', tool: 'project-generator' },
+  { path: '/project-generator', icon: FiLayers, label: 'Project Ideas Generator', tool: 'project-generator' },
   { path: '/exam-prep', icon: FiAward, label: 'Exam Preparation', tool: 'exam-prep' },
 ];
 
