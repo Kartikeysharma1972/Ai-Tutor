@@ -8,7 +8,7 @@ import User from '../models/User.js';
 import Session from '../models/Session.js';
 import TestAttempt from '../models/TestAttempt.js';
 import { buildSystemPrompt, getMockTestConfig, getExpectedTypes } from '../utils/gradePrompts.js';
-import { searchWikipediaImage } from '../utils/imageSearch.js';
+import { searchWikipediaImage, searchMultipleImages } from '../utils/imageSearch.js';
 
 const router = Router();
 let groq;
@@ -35,24 +35,29 @@ const upload = multer({
 // Don't send these stubs back to the model on later turns — they have no signal.
 const PLACEHOLDER_RE = /^\[(?:Image uploaded|File:[^\]]*)\]\s*/;
 
+function toPlain(messages) {
+  return messages.map(m => ({ role: m.role, content: m.content }));
+}
+
 function stripPlaceholders(messages) {
   return messages
     .map(m => {
       if (m.role !== 'user' || typeof m.content !== 'string') return m;
       const stripped = m.content.replace(PLACEHOLDER_RE, '').trim();
-      return stripped ? { ...m, content: stripped } : null;
+      return stripped ? { role: m.role, content: stripped } : null;
     })
     .filter(Boolean);
 }
 
 async function chatWithGroq(systemPrompt, messages, options = {}) {
-  const cleaned = options.skipPlaceholderFilter ? messages : stripPlaceholders(messages);
+  const plain = toPlain(messages);
+  const cleaned = options.skipPlaceholderFilter ? plain : stripPlaceholders(plain);
   // Drop any leading assistant message (model expects user-first after system)
   const trimmed = cleaned.length && cleaned[0].role === 'assistant' ? cleaned.slice(1) : cleaned;
   const formattedMessages = [
     { role: 'system', content: systemPrompt },
-    ...trimmed.map(m => ({ role: m.role, content: m.content })),
-  ];
+    ...trimmed,
+  ].filter(m => m.role && m.content);
 
   const response = await getGroq().chat.completions.create({
     model: options.model || 'meta-llama/llama-4-scout-17b-16e-instruct',
@@ -607,6 +612,18 @@ router.get('/search-image', authMiddleware, async (req, res) => {
     res.json({ image });
   } catch {
     res.json({ image: null });
+  }
+});
+
+// ---------- MULTIPLE IMAGE SEARCH ----------
+router.get('/search-images', authMiddleware, async (req, res) => {
+  try {
+    const { q, subject, count } = req.query;
+    if (!q) return res.json({ images: [] });
+    const images = await searchMultipleImages(q, subject || '', parseInt(count) || 3);
+    res.json({ images });
+  } catch {
+    res.json({ images: [] });
   }
 });
 
