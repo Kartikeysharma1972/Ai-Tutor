@@ -149,6 +149,27 @@ async function tryCommonsSearch(topic) {
   }
 }
 
+async function tryCommonsSearchMultiple(topic, count = 3) {
+  try {
+    const data = await fetchJson(
+      `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(topic)}&gsrnamespace=6&gsrlimit=10&prop=imageinfo&iiprop=url|mime&iiurlwidth=500&format=json&origin=*`
+    );
+    const pages = data?.query?.pages;
+    if (!pages) return [];
+    const results = [];
+    for (const page of Object.values(pages)) {
+      if (results.length >= count) break;
+      const info = page.imageinfo?.[0];
+      if (info?.mime?.startsWith('image/') && info.mime !== 'image/svg+xml') {
+        results.push({ url: info.thumburl || info.url, alt: page.title.replace('File:', '') });
+      }
+    }
+    return results;
+  } catch {
+    return [];
+  }
+}
+
 export async function searchWikipediaImage(topic, subject) {
   try {
     let searchTerm;
@@ -159,36 +180,30 @@ export async function searchWikipediaImage(topic, subject) {
       searchTerm = extractKeyTopic(topic);
     }
 
-    // 1. Direct REST API lookup (en)
     const restResult = await tryRestApi(searchTerm);
     if (restResult) return restResult;
 
-    // 2. PageImages API (en)
     const pageImgResult = await tryPageImagesApi(searchTerm, 'en');
     if (pageImgResult) return pageImgResult;
 
-    // 3. Underscore variant via REST
     const underscored = searchTerm.replace(/\s+/g, '_');
     if (underscored !== encodeURIComponent(searchTerm)) {
       const usResult = await tryRestApi(underscored);
       if (usResult) return usResult;
     }
 
-    // 4. Wikipedia search (en) -> pageimages for each result
     const searchResults = await searchWikipediaPages(searchTerm, 'en');
     for (const result of searchResults) {
       const img = await tryPageImagesApi(result.title, 'en');
       if (img) return img;
     }
 
-    // 5. Hindi Wikipedia search -> pageimages
     const hiResults = await searchWikipediaPages(searchTerm, 'hi');
     for (const result of hiResults) {
       const img = await tryPageImagesApi(result.title, 'hi');
       if (img) return img;
     }
 
-    // 6. Wikimedia Commons search
     const commonsResult = await tryCommonsSearch(searchTerm);
     if (commonsResult) return commonsResult;
 
@@ -196,4 +211,47 @@ export async function searchWikipediaImage(topic, subject) {
   } catch {
     return null;
   }
+}
+
+export async function searchMultipleImages(topic, subject, count = 3) {
+  const images = [];
+  const seenUrls = new Set();
+
+  const searchTerm = isLiteratureSubject(subject)
+    ? extractVisualKeyword(topic)
+    : extractKeyTopic(topic);
+
+  function addImage(img) {
+    if (img && !seenUrls.has(img.url)) {
+      images.push(img);
+      seenUrls.add(img.url);
+    }
+  }
+
+  const restResult = await tryRestApi(searchTerm);
+  addImage(restResult);
+  if (images.length >= count) return images;
+
+  const searchResults = await searchWikipediaPages(searchTerm, 'en');
+  for (const result of searchResults) {
+    if (images.length >= count) break;
+    const img = await tryPageImagesApi(result.title, 'en');
+    addImage(img);
+  }
+  if (images.length >= count) return images;
+
+  const hiResults = await searchWikipediaPages(searchTerm, 'hi');
+  for (const result of hiResults) {
+    if (images.length >= count) break;
+    const img = await tryPageImagesApi(result.title, 'hi');
+    addImage(img);
+  }
+  if (images.length >= count) return images;
+
+  const commonsResults = await tryCommonsSearchMultiple(searchTerm, count - images.length);
+  for (const img of commonsResults) {
+    addImage(img);
+  }
+
+  return images;
 }

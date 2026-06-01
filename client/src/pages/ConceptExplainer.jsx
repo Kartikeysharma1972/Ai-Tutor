@@ -221,9 +221,10 @@ export default function ConceptExplainer() {
 
       if (userMessage) {
         const searchQuery = chapter || userMessage;
-        fetchImage(searchQuery, subject).then(img => {
-          if (img) {
-            const imgMd = `\n\n![${img.alt}](${img.url})\n`;
+        aiAPI.searchImages(searchQuery, subject || '', 3).then(res => {
+          const images = res.data.images;
+          if (images && images.length > 0) {
+            const imgMd = images.map(img => `\n\n![${img.alt}](${img.url})`).join('');
             setMessages(prev => {
               const last = prev[prev.length - 1];
               if (last?.role === 'assistant' && last.content === aiText) {
@@ -232,7 +233,7 @@ export default function ConceptExplainer() {
               return prev;
             });
           }
-        });
+        }).catch(() => {});
       }
     } catch (err) {
       toast.error('Failed to get response');
@@ -395,6 +396,7 @@ export default function ConceptExplainer() {
                 </div>
               </motion.div>
             )}
+
             <div ref={messagesEndRef} />
           </div>
         </div>
