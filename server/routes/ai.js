@@ -417,19 +417,33 @@ function sanitizeQuestions(questions) {
 
 router.post('/mock-test/generate', authMiddleware, async (req, res) => {
   try {
-    const { subject, chapters } = req.body;
+    const { subject, chapters, questionType, questionCount } = req.body;
     const user = await User.findById(req.userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const config = getMockTestConfig(user.grade);
-    const systemPrompt = buildSystemPrompt(user.grade, 'mock-test', { subject, chapters });
+    if (questionCount && [10, 15, 20, 25, 30].includes(questionCount)) {
+      config.totalQuestions = questionCount;
+      config.totalTime = Math.max(15, Math.round(questionCount * 1.8));
+    }
+
+    const systemPrompt = buildSystemPrompt(user.grade, 'mock-test', {
+      subject,
+      chapters,
+      questionType: questionType || null,
+    });
 
     let questions = [];
     const maxAttempts = 3;
+    const wantSpecificType = questionType && questionType !== 'surprise';
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const typeInstruction = wantSpecificType
+        ? `Generate ALL ${config.totalQuestions} questions of type "${questionType}" ONLY.`
+        : 'You MUST use a variety of question types as specified.';
+
       const aiResponse = await chatWithGroq(systemPrompt, [
-        { role: 'user', content: `Generate a mock test for ${subject}, chapters: ${chapters?.join(', ') || 'All chapters'}. You MUST use a variety of question types as specified. Return ONLY valid JSON: {"questions": [...]}` },
+        { role: 'user', content: `Generate a mock test for ${subject}, chapters: ${chapters?.join(', ') || 'All chapters'}. ${typeInstruction} Return ONLY valid JSON: {"questions": [...]}` },
       ], { jsonMode: true, temperature: 0.45 + (attempt * 0.15), maxTokens: 8000 });
 
       try {
@@ -443,7 +457,12 @@ router.post('/mock-test/generate', authMiddleware, async (req, res) => {
       questions = fixQuestionTypes(questions, user.grade);
       questions = sanitizeQuestions(questions);
 
-      if (questions.length >= Math.floor(config.totalQuestions * 0.8) && validateQuestionDiversity(questions, user.grade)) break;
+      const minCount = Math.floor(config.totalQuestions * 0.8);
+      if (wantSpecificType) {
+        if (questions.length >= minCount) break;
+      } else {
+        if (questions.length >= minCount && validateQuestionDiversity(questions, user.grade)) break;
+      }
     }
 
     res.json({ questions, config });

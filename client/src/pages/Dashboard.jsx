@@ -30,8 +30,8 @@ const tools = [
   {
     path: '/project-generator',
     icon: FiLayers,
-    title: 'Project Idea Generator',
-    desc: '4 distinct, CBSE-aligned project ideas with materials, build steps, effort level, and time estimate.',
+    title: 'Project Ideas Generator',
+    desc: 'Distinct, CBSE-aligned project ideas with materials, build steps, effort level, and time estimate.',
     iconBg: 'from-violet-100 to-violet-200/70',
     iconColor: 'text-violet-600',
     chipBg: 'bg-violet-50 text-violet-700 border-violet-100',

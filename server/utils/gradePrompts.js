@@ -327,18 +327,16 @@ MATH RENDERING (LaTeX):
 
   if (tool === 'concept-explainer') {
     const level = extra.explanationLevel || 'beginner';
-    const levelDesc = {
-      beginner: 'CBSE standard-level explanation, simple language, foundational understanding',
-      intermediate: 'Slightly above CBSE, added depth, broader context, connecting concepts',
-      advanced: 'Rigorous, competitive-exam level, deep conceptual coverage, edge cases',
-    };
     const textbook = getTextbookInfo(grade, extra.subject);
     systemPrompt += `
 TOOL: Concept Explainer
-EXPLANATION LEVEL: ${level} — ${levelDesc[level] || levelDesc.beginner}
+STUDENT: Class ${grade} student
+DIFFICULTY LEVEL: ${level.toUpperCase()}
 ${extra.subject ? `SUBJECT CONTEXT: ${extra.subject}` : ''}
 ${extra.chapter ? `CHAPTER CONTEXT: ${extra.chapter}` : ''}
 ${textbook ? `REFERENCE TEXTBOOK: ${textbook}` : ''}
+
+CRITICAL: You must produce output that is appropriate for BOTH the student's grade (Class ${grade}) AND the selected difficulty level (${level}). A "Beginner" explanation for Class 3 is very different from "Beginner" for Class 11. Always combine both inputs.
 
 ${extra.subject || extra.chapter ? `The student is studying ${extra.subject || 'a subject'}${extra.chapter ? ', specifically the chapter: "' + extra.chapter + '"' : ''}. Focus your explanation within this scope. Reference NCERT content, examples, and terminology from this specific chapter. Connect concepts to other topics within this chapter where relevant.` : ''}
 
@@ -347,7 +345,6 @@ The student's school follows "${textbook}" for this subject. You MUST align your
 - Use the same terminology, notation, and problem-solving methods used in ${textbook}.
 - Structure explanations the way this textbook introduces and builds concepts.
 - When giving examples or practice problems, match the type and difficulty of exercises found in ${textbook}.
-- Reference chapter organization and topic flow as presented in this textbook.
 - For Maths (RS Aggarwal / RD Sharma): Follow their step-by-step solution style with proper working shown.
 - For Science (Lakhmir Singh / HC Verma / Pradeep): Match their conceptual depth, diagram-based explanations, and numerical approach.
 - For English (Wren & Martin / BBC Compacta / Together With): Follow their grammar rules framework, exercise patterns, and comprehension style.
@@ -355,13 +352,44 @@ The student's school follows "${textbook}" for this subject. You MUST align your
 - For SST/Commerce (Oswaal / Sandeep Garg): Follow their answer-writing format, key-point summaries, and exam-oriented approach.
 ` : ''}
 
+${level === 'beginner' ? `DIFFICULTY: BEGINNER (for Class ${grade})
+You MUST follow this structure:
+1. Start with a real-life analogy or story the student can picture — something a Class ${grade} student encounters daily.
+2. Use ONLY words a Class ${grade} student would understand. If a technical term is unavoidable, explain it immediately in simple brackets.
+3. Maximum 3 short paragraphs for the core explanation.
+4. NO formulas, NO technical jargon unless immediately explained in brackets.
+5. End with 1 simple "Did you know?" fun fact related to the topic.
+
+Keep it warm, simple, and relatable. Think of how a caring teacher would explain this to a Class ${grade} student who is seeing this concept for the first time.`
+
+: level === 'intermediate' ? `DIFFICULTY: INTERMEDIATE (for Class ${grade})
+You MUST follow this structure:
+1. Start with a clear 1-line definition of the concept.
+2. Explain the mechanism — How does it work? / What happens? / Why does it work this way?
+3. Include one diagram description OR one comparison table (in markdown) that makes the concept clearer.
+4. Use grade-appropriate NCERT/CBSE textbook language only — no competitive-exam jargon.
+5. End with 1 "Thinking Question" (e.g. "What do you think happens when…?") OR a "Did you know?" line.
+
+Balance clarity with depth. A Class ${grade} student should feel they understand the concept well enough to answer textbook questions after reading this.`
+
+: `DIFFICULTY: ADVANCED (for Class ${grade})
+You MUST follow this structure:
+1. Start with the technical/formal definition of the concept.
+2. Explain the mechanism in depth, including exceptions, special cases, and edge conditions where applicable.
+3. Include formulas, equations, or a structured breakdown (tables/flowcharts) wherever applicable. Use LaTeX for math.
+4. Add an "Exam Angle" section — What types of questions typically come from this topic? What tricky variations appear in exams?
+5. End with 1 cross-subject or cross-concept connection (e.g. "This links to [related concept] in [other topic/subject]…").
+
+Be rigorous and thorough. A Class ${grade} student preparing for exams should feel fully equipped after reading this.`}
+
 RESPONSE GUIDELINES:
-- Give ACCURATE, DETAILED answers. Do not be vague or generic.
+- Give ACCURATE, DETAILED answers calibrated to Class ${grade} + ${level} difficulty.
 - If a question is about a specific formula, theorem, or law — state it precisely with the correct form.
 - Use NCERT-aligned terminology and examples${textbook ? ', supplemented with the approach from ' + textbook : ''}.
 - For Maths/Science: always include step-by-step working where applicable.
 - For conceptual questions: explain the WHY, not just the WHAT.
 - If the student seems confused, break it down further with simpler analogies.
+- When appropriate for the topic, include a mini mind map or concept tree using markdown (indented bullets or a text-based tree) to show how subtopics connect. This is NOT required for every question — only when the topic has meaningful sub-concepts or relationships to visualize.
 
 HONESTY & ACCURACY:
 - If you are NOT confident about a fact (specific year, specific name, specific number, niche detail), say so explicitly — e.g. "I'm not 100% sure of the exact year, but it was around the 1850s". DO NOT invent confident-sounding facts.
@@ -369,52 +397,6 @@ HONESTY & ACCURACY:
 - If the question is in a different language (Hindi/Hinglish/regional), respond primarily in the same language the student used.
 - If the question is ambiguous, ask ONE clarifying question rather than guessing wildly.
 - NEVER fabricate citations, NCERT chapter numbers, or page references.
-
-${gradeGroup === 'primary-lower' ? `RESPONSE FORMAT FOR CLASS ${grade} (Young Child):
-1. **Simple Explanation** — Use very simple words, short sentences, and lots of emojis (🍎🐶⭐🌈). Explain like telling a story to a small child.
-2. **Show with Pictures** — Use emoji objects to demonstrate: 🍎🍎 + 🍎 = 🍎🍎🍎 (2+1=3). Make it visual and fun.
-3. **Fun Examples** — 2-3 examples using emojis, animals, toys, or everyday objects the child sees daily.
-4. **Easy Remember** — One simple line to remember the concept, like a rhyme or fun phrase.
-5. **Let's Practice!** — 3-4 simple practice questions using emojis with answers at the bottom.
-
-Keep it SHORT, FUN, and VISUAL. Use a few emojis where helpful (not excessive). No complex words. Talk like a friendly teacher.`
-: gradeGroup === 'primary-upper' ? `RESPONSE FORMAT FOR CLASS ${grade}:
-1. **Simple Explanation** — Clear explanation using everyday analogies (sharing toys, cooking, playing). Keep sentences short and friendly.
-2. **Easy Example** — Show the concept with a relatable real-life example (rusting gate, burning candle, sharing chocolates).
-3. **More Examples** — 2-3 simple worked examples with easy numbers and familiar situations.
-4. **Easy Remember Trick** — A simple one-line definition or memory trick.
-5. **Where We See This** — List 4-5 real-life places where this concept appears.
-6. **Try These!** — 3-4 simple practice questions with answers.
-
-Keep language simple. Use some emojis. Short paragraphs. Make it feel like a friendly chat, not a textbook.`
-: gradeGroup === 'middle' ? `RESPONSE FORMAT FOR CLASS ${grade}:
-1. **Explanation** — Clear conceptual explanation with proper terminology (explained in brackets). Include real-world connections.
-2. **Key Diagram/Flow** — Text-based diagram, flowchart, or comparison table showing the concept structure.
-3. **Examples** — 2-3 worked examples from NCERT/CBSE curriculum${extra.chapter ? ' from "' + extra.chapter + '"' : ''}${textbook ? ', in the style of ' + textbook : ''}.
-4. **Important Definitions** — Key terms and their precise definitions for exam preparation.
-5. **Quick Recap** — 4-5 bullet points summarizing the key takeaways.
-6. **Practice Questions** — 3-4 questions mixing different types (MCQ, fill blanks, short answer).
-
-Use proper formatting with headers. Introduce technical terms properly. Balance understanding with exam prep.`
-: gradeGroup === 'secondary' ? `RESPONSE FORMAT FOR CLASS ${grade} (Board Exam Level):
-1. **Explanation** — Thorough, NCERT-aligned explanation with proper formulas, equations, and scientific notation.
-2. **Key Diagram/Flow** — Detailed text-based diagrams, comparison tables, or flowcharts.
-3. **Solved Examples** — 2-3 board-exam style worked examples with full step-by-step solutions${extra.chapter ? ' from "' + extra.chapter + '"' : ''}${textbook ? ', in the style of ' + textbook : ''}.
-4. **Important Definitions & Formulas** — All key terms, formulas, and laws stated precisely.
-5. **Short Notes for Revision** — Crisp bullet points for last-minute board exam revision.
-6. **Most Important Board Question** — A typical board exam question with model answer.
-
-Use proper scientific/mathematical notation. Include mnemonics. Be thorough and exam-focused.`
-: `RESPONSE FORMAT FOR CLASS ${grade} (Senior Secondary / Competitive Level):
-1. **Detailed Explanation** — Rigorous conceptual explanation with full derivations, proofs, or mechanisms where applicable.
-2. **Key Formulas & Theorems** — All relevant formulas, laws, theorems stated precisely with conditions of validity.
-3. **Solved Examples** — 2-3 examples including board-level AND competitive-exam (JEE/NEET) level problems${extra.chapter ? ' from "' + extra.chapter + '"' : ''}${textbook ? ', in the style of ' + textbook : ''}.
-4. **Comparison Tables / Diagrams** — Organized tables, flowcharts, or concept maps for quick reference.
-5. **Common Mistakes & Tricky Points** — Pitfalls students commonly fall into, with corrections.
-6. **Short Notes for Revision** — Crisp summary for board + competitive exam revision.
-7. **Competitive Edge** — 1-2 advanced points or shortcut methods for JEE/NEET/olympiad aspirants.
-
-Full mathematical rigor. Multiple solution approaches where possible. Include previous year board/competitive questions.`}
 
 Keep responses well-structured with headers and bullet points. Use markdown formatting. Be precise and helpful.
 `;
@@ -475,7 +457,7 @@ GENERAL RULES:
   if (tool === 'project-generator') {
     const count = extra.count || 4;
     systemPrompt += `
-TOOL: Project Idea Generator
+TOOL: Project Ideas Generator
 SUBJECT: ${extra.subject || 'General'}
 PROJECT TYPE: ${extra.projectType || 'Any'}
 ${extra.topic ? `SPECIFIC TOPIC: ${extra.topic}` : ''}
@@ -485,21 +467,33 @@ Mix difficulty levels: include at least one Easy, one Medium, and one Hard optio
 
 Format EACH idea EXACTLY like this (use markdown):
 
-### 💡 Idea N — [Creative, specific title]
-**What it is:** 2-3 sentence overview of the project and its learning goal.
+---
+
+### Idea N — [Creative, specific title]
+
+**What it is:**
+2-3 sentence overview of the project and its learning goal.
+
 **Materials / Tools needed:**
 - [item 1]
 - [item 2]
 - [item 3]
-**How a student would build it:**
+
+**Step-by-step guide:**
 1. [step 1]
 2. [step 2]
 3. [step 3]
 4. [step 4]
-**Effort Level:** Easy / Medium / Hard (pick one)
-**Time Required:** rough estimate (e.g. "1 weekend", "1-2 weeks")
-**CBSE Connection:** which chapter/topic this maps to and what concept it demonstrates.
+
+| Detail | Info |
+|---|---|
+| **Effort Level** | Easy / Medium / Hard |
+| **Time Required** | e.g. "1 weekend", "1-2 weeks" |
+| **CBSE Connection** | Which chapter/topic this maps to |
+
 **Why this is cool:** 1 sentence on what makes this project genuinely interesting (not generic).
+
+---
 
 GUIDELINES:
 - Calibrate complexity to a Class ${grade} student — what's age-appropriate, achievable, and engaging.
@@ -508,24 +502,28 @@ GUIDELINES:
 - Each idea should feel different — vary the project TYPE (model, presentation, experiment, app, poster, research) if "Any" was selected.
 - If "${extra.projectType || 'Any'}" is a specific type, all ${count} ideas should fit that type but explore different angles within it.
 - Be CONCRETE — name specific materials, specific steps. No vague hand-waving.
+- Use clean markdown formatting with proper spacing between sections.
 `;
   }
 
   if (tool === 'mock-test') {
     const testConfig = getMockTestConfig(grade);
+    const overrideCount = extra.questionCount || testConfig.totalQuestions;
     const typeSchemas = getQuestionTypeSchema(gradeGroup);
-    const typeDistribution = getQuestionTypeDistribution(gradeGroup, testConfig.totalQuestions);
+    const typeDistribution = getQuestionTypeDistribution(gradeGroup, overrideCount);
     const textbook = getTextbookInfo(grade, extra.subject);
+    const wantSpecificType = extra.questionType && extra.questionType !== 'surprise';
     systemPrompt += `
 TOOL: Mock Test Generator
 SUBJECT: ${extra.subject}
 CHAPTERS: ${extra.chapters?.join(', ') || 'All'}
 ${textbook ? `REFERENCE TEXTBOOK: ${textbook} — Generate questions matching the style, difficulty, and exercise patterns found in this textbook.` : ''}
+${wantSpecificType ? `QUESTION TYPE FILTER: Generate ALL questions of type "${extra.questionType}" ONLY. Do NOT mix other types.` : ''}
 
-Generate exactly ${testConfig.totalQuestions} questions following this structure:
-- Easy: ${testConfig.easyPercent}% (${Math.round(testConfig.totalQuestions * testConfig.easyPercent / 100)} questions)
-- Medium: ${testConfig.mediumPercent}% (${Math.round(testConfig.totalQuestions * testConfig.mediumPercent / 100)} questions)
-- Hard: ${testConfig.hardPercent}% (${Math.round(testConfig.totalQuestions * testConfig.hardPercent / 100)} questions)
+Generate exactly ${overrideCount} questions following this structure:
+- Easy: ${testConfig.easyPercent}% (${Math.round(overrideCount * testConfig.easyPercent / 100)} questions)
+- Medium: ${testConfig.mediumPercent}% (${Math.round(overrideCount * testConfig.mediumPercent / 100)} questions)
+- Hard: ${testConfig.hardPercent}% (${Math.round(overrideCount * testConfig.hardPercent / 100)} questions)
 
 MANDATORY QUESTION TYPE DISTRIBUTION — You MUST follow this EXACTLY:
 ${typeDistribution}

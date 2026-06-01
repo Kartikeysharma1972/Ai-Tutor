@@ -12,9 +12,9 @@ import { aiAPI, sessionAPI, curriculumAPI } from '../utils/api';
 import toast from 'react-hot-toast';
 
 const levels = [
-  { key: 'beginner', label: 'Beginner', desc: 'CBSE standard' },
-  { key: 'intermediate', label: 'Intermediate', desc: 'Added depth' },
-  { key: 'advanced', label: 'Advanced', desc: 'Competitive level' },
+  { key: 'beginner', label: 'Beginner', desc: 'Real-life analogies, simple language' },
+  { key: 'intermediate', label: 'Intermediate', desc: 'Textbook depth with diagrams' },
+  { key: 'advanced', label: 'Advanced', desc: 'Exam-focused, formulas & edge cases' },
 ];
 
 const samplePrompts = [
@@ -23,15 +23,6 @@ const samplePrompts = [
   { emoji: '⚖️', text: 'Why does ice float on water?' },
   { emoji: '📜', text: 'Summarize the causes of the French Revolution' },
 ];
-
-async function fetchImage(query, subject) {
-  try {
-    const res = await aiAPI.searchImage(query.substring(0, 100).trim(), subject || '');
-    return res.data.image || null;
-  } catch {
-    return null;
-  }
-}
 
 const SpeechRecognition = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
 
@@ -218,23 +209,6 @@ export default function ConceptExplainer() {
       setSessionId(response.data.sessionId);
       const aiText = response.data.response;
       setMessages(prev => [...prev, { role: 'assistant', content: aiText }]);
-
-      if (userMessage) {
-        const searchQuery = chapter || userMessage;
-        aiAPI.searchImages(searchQuery, subject || '', 3).then(res => {
-          const images = res.data.images;
-          if (images && images.length > 0) {
-            const imgMd = images.map(img => `\n\n![${img.alt}](${img.url})`).join('');
-            setMessages(prev => {
-              const last = prev[prev.length - 1];
-              if (last?.role === 'assistant' && last.content === aiText) {
-                return [...prev.slice(0, -1), { ...last, content: last.content + imgMd }];
-              }
-              return prev;
-            });
-          }
-        }).catch(() => {});
-      }
     } catch (err) {
       toast.error('Failed to get response');
       setMessages(prev => prev.slice(0, -1));
@@ -262,17 +236,24 @@ export default function ConceptExplainer() {
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mr-1">Level</span>
-              <div className="segmented">
-                {levels.map(l => (
-                  <button
-                    key={l.key}
-                    onClick={() => setLevel(l.key)}
-                    data-active={level === l.key}
-                    title={l.desc}
-                  >
-                    {l.label}
-                  </button>
-                ))}
+              <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-xl">
+                {levels.map(l => {
+                  const active = level === l.key;
+                  return (
+                    <button
+                      key={l.key}
+                      onClick={() => setLevel(l.key)}
+                      title={l.desc}
+                      className={`px-3.5 py-1.5 rounded-lg text-[12.5px] font-semibold transition-all ${
+                        active
+                          ? 'bg-primary-500 text-white shadow-sm'
+                          : 'text-gray-500 hover:text-gray-800 hover:bg-white/60'
+                      }`}
+                    >
+                      {l.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -357,7 +338,7 @@ export default function ConceptExplainer() {
 
                 {SpeechRecognition && (
                   <p className="text-[11.5px] text-gray-400 mt-6">
-                    🎤 Voice input available — tap the mic to speak your question
+                    Voice input available — tap the mic to speak your question
                   </p>
                 )}
               </motion.div>
@@ -387,11 +368,14 @@ export default function ConceptExplainer() {
 
             {loading && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
-                <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm">
-                  <div className="flex gap-1.5">
-                    <div className="w-2 h-2 bg-primary-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                    <div className="w-2 h-2 bg-primary-300 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                    <div className="w-2 h-2 bg-primary-300 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-md px-5 py-4 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="flex gap-1.5">
+                      <div className="w-2 h-2 bg-primary-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                      <div className="w-2 h-2 bg-primary-300 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                      <div className="w-2 h-2 bg-primary-300 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                    </div>
+                    <span className="text-[12px] text-gray-400 font-medium">Thinking…</span>
                   </div>
                 </div>
               </motion.div>

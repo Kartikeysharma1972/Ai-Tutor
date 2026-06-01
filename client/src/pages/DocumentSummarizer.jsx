@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiUploadCloud, FiFileText, FiSearch, FiList, FiAlignLeft, FiX,
 } from 'react-icons/fi';
@@ -26,8 +26,15 @@ export default function DocumentSummarizer() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState('');
   const [inputMode, setInputMode] = useState('upload');
+  const resultRef = useRef(null);
 
   const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
+
+  useEffect(() => {
+    if (result && resultRef.current) {
+      resultRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [result]);
 
   const onDrop = useCallback((accepted) => {
     if (accepted.length > 0) setFile(accepted[0]);
@@ -74,46 +81,8 @@ export default function DocumentSummarizer() {
           subtitle="Upload a PDF or image, or paste text. Get a full summary, just the key points, or a direct answer to a question."
         />
 
-        {/* Mode Selector */}
-        <div className="mt-7 grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {modes.map(m => {
-            const active = mode === m.key;
-            return (
-              <button
-                key={m.key}
-                onClick={() => setMode(m.key)}
-                className={`relative text-left p-4 rounded-2xl border-2 transition-all ${
-                  active
-                    ? 'border-primary-400 bg-primary-50/30 shadow-[0_10px_24px_-16px_rgba(46,134,193,0.4)]'
-                    : 'border-gray-100 bg-white hover:border-primary-200'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <span className={`grid place-items-center w-9 h-9 rounded-xl ${active ? 'bg-primary-500 text-white' : 'bg-gray-50 text-gray-500'}`}>
-                    <m.icon />
-                  </span>
-                  <div>
-                    <p className={`font-semibold text-[13.5px] ${active ? 'text-primary-700' : 'text-gray-800'}`}>{m.label}</p>
-                    <p className="text-[11.5px] text-gray-400">{m.desc}</p>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        {mode === 'search' && (
-          <motion.input
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            type="text" value={query} onChange={e => setQuery(e.target.value)}
-            placeholder="What do you want to find in the document?"
-            className="w-full mt-5 px-4 py-3 rounded-xl border border-gray-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 outline-none text-sm bg-white"
-          />
-        )}
-
         {/* Input source segmented */}
-        <div className="mt-6 flex items-center justify-between flex-wrap gap-3">
+        <div className="mt-7 flex items-center justify-between flex-wrap gap-3">
           <div className="segmented">
             <button onClick={() => setInputMode('upload')} data-active={inputMode === 'upload'}>Upload File</button>
             <button onClick={() => setInputMode('text')} data-active={inputMode === 'text'}>Paste Text</button>
@@ -167,6 +136,47 @@ export default function DocumentSummarizer() {
           </div>
         )}
 
+        {/* Mode Selector — below input */}
+        <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {modes.map(m => {
+            const active = mode === m.key;
+            return (
+              <button
+                key={m.key}
+                onClick={() => setMode(m.key)}
+                className={`relative text-left p-4 rounded-2xl border-2 transition-all ${
+                  active
+                    ? 'border-primary-400 bg-primary-50/30 shadow-[0_10px_24px_-16px_rgba(46,134,193,0.4)]'
+                    : 'border-gray-100 bg-white hover:border-primary-200'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className={`grid place-items-center w-9 h-9 rounded-xl ${active ? 'bg-primary-500 text-white' : 'bg-gray-50 text-gray-500'}`}>
+                    <m.icon />
+                  </span>
+                  <div>
+                    <p className={`font-semibold text-[13.5px] ${active ? 'text-primary-700' : 'text-gray-800'}`}>{m.label}</p>
+                    <p className="text-[11.5px] text-gray-400">{m.desc}</p>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        <AnimatePresence>
+          {mode === 'search' && (
+            <motion.input
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 4 }}
+              type="text" value={query} onChange={e => setQuery(e.target.value)}
+              placeholder="What do you want to find in the document?"
+              className="w-full mt-4 px-4 py-3 rounded-xl border border-gray-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-100 outline-none text-sm bg-white"
+            />
+          )}
+        </AnimatePresence>
+
         <button
           onClick={handleSubmit}
           disabled={loading}
@@ -175,28 +185,49 @@ export default function DocumentSummarizer() {
           {loading ? 'Summarizing…' : mode === 'search' ? 'Find Answer' : 'Summarize'}
         </button>
 
-        {loading && (
-          <div className="mt-6 surface p-6 space-y-3">
-            <div className="skeleton h-4 w-2/3" />
-            <div className="skeleton h-3 w-full" />
-            <div className="skeleton h-3 w-5/6" />
-            <div className="skeleton h-3 w-4/5" />
-          </div>
-        )}
+        {/* Loading Animation */}
+        <AnimatePresence>
+          {loading && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="mt-6 surface p-8 flex flex-col items-center justify-center gap-4"
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <div className="w-2.5 h-2.5 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <div className="w-2.5 h-2.5 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+              <p className="text-[13px] text-gray-500 font-medium">
+                {mode === 'search' ? 'Searching through your document…' : mode === 'key-points' ? 'Extracting key points…' : 'Generating summary…'}
+              </p>
+              <div className="w-full max-w-xs space-y-2.5 mt-1">
+                <div className="skeleton h-3 w-full" />
+                <div className="skeleton h-3 w-4/5" />
+                <div className="skeleton h-3 w-3/5" />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Result */}
-        {result && (
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-6 surface p-6"
-          >
-            <h3 className="font-display font-bold text-gray-900 mb-3 flex items-center gap-2">
-              <FiFileText className="text-primary-500" /> Summary
-            </h3>
-            <ChatMarkdown content={result} />
-          </motion.div>
-        )}
+        <AnimatePresence>
+          {result && !loading && (
+            <motion.div
+              ref={resultRef}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35 }}
+              className="mt-6 surface p-6 ring-1 ring-primary-100"
+            >
+              <h3 className="font-display font-bold text-gray-900 mb-3 flex items-center gap-2">
+                <FiFileText className="text-primary-500" /> Summary
+              </h3>
+              <ChatMarkdown content={result} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </AppLayout>
   );
