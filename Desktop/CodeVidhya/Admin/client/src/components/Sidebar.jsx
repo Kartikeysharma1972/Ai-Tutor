@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,6 +13,7 @@ import {
   HiOutlineDocumentChartBar,
   HiOutlineCog6Tooth,
 } from 'react-icons/hi2';
+import api from '../utils/api';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: HiOutlineHome, end: true },
@@ -27,6 +29,19 @@ const navItems = [
 export default function Sidebar({ open, onClose }) {
   const { admin, logout } = useAuth();
   const location = useLocation();
+  const [onlineCount, setOnlineCount] = useState(0);
+
+  useEffect(() => {
+    const fetchCount = async () => {
+      try {
+        const res = await api.get('/online');
+        setOnlineCount(res.data.total_online || 0);
+      } catch {}
+    };
+    fetchCount();
+    const interval = setInterval(fetchCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const sidebarContent = (
     <div className="flex flex-col h-full">
@@ -75,7 +90,13 @@ export default function Sidebar({ open, onClose }) {
                 />
               )}
               <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-600'}`} />
-              <span>{item.label}</span>
+              <span className="flex-1">{item.label}</span>
+              {item.path === '/' && onlineCount > 0 && (
+                <span className="flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-700 text-[10px] font-bold rounded-full">
+                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                  {onlineCount}
+                </span>
+              )}
             </NavLink>
           );
         })}

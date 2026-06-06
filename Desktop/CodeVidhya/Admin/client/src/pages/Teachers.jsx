@@ -6,6 +6,7 @@ import api from '../utils/api';
 import Header from '../components/Header';
 import DataTable from '../components/DataTable';
 import ExportButton from '../components/ExportButton';
+import OnlineBadge from '../components/OnlineBadge';
 
 function formatDate(dateStr) {
   if (!dateStr) return '-';
@@ -35,9 +36,13 @@ export default function Teachers() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [onlineIds, setOnlineIds] = useState(new Set());
 
   useEffect(() => {
     fetchTeachers();
+    fetchOnline();
+    const interval = setInterval(fetchOnline, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchTeachers = async () => {
@@ -51,6 +56,14 @@ export default function Teachers() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchOnline = async () => {
+    try {
+      const res = await api.get('/online');
+      const ids = new Set(res.data.teachers.online.map((t) => t.id));
+      setOnlineIds(ids);
+    } catch {}
   };
 
   const filtered = search
@@ -68,10 +81,22 @@ export default function Teachers() {
       label: 'Name',
       render: (val, row) => (
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">
-            {val?.charAt(0)?.toUpperCase() || '?'}
+          <div className="relative flex-shrink-0">
+            <div className="w-8 h-8 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center text-xs font-bold">
+              {val?.charAt(0)?.toUpperCase() || '?'}
+            </div>
+            {onlineIds.has(row.id) && (
+              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full">
+                <span className="absolute inset-0 bg-green-400 rounded-full animate-ping opacity-75" />
+              </span>
+            )}
           </div>
-          <span className="font-medium text-gray-900">{val || '-'}</span>
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-gray-900">{val || '-'}</span>
+            {onlineIds.has(row.id) && (
+              <span className="text-[10px] font-semibold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">ONLINE</span>
+            )}
+          </div>
         </div>
       ),
     },

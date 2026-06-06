@@ -33,6 +33,7 @@ app.use('/api/alerts', require('./routes/alerts'));
 app.use('/api/export', require('./routes/export'));
 app.use('/api/moderation', require('./routes/moderation'));
 app.use('/api/management', require('./routes/management'));
+app.use('/api/online', require('./routes/online'));
 
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../client/dist')));

@@ -9,6 +9,7 @@ import {
   HiOutlineBolt,
   HiOutlineUserGroup,
   HiOutlineFlag,
+  HiOutlineSignal,
 } from 'react-icons/hi2';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -17,6 +18,7 @@ import {
 import api from '../utils/api';
 import Header from '../components/Header';
 import StatsCard from '../components/StatsCard';
+import OnlineBadge from '../components/OnlineBadge';
 
 const CHART_COLORS = ['#10b981', '#059669', '#34d399', '#6ee7b7', '#a7f3d0', '#047857', '#065f46'];
 
@@ -47,10 +49,14 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [flaggedStats, setFlaggedStats] = useState(null);
+  const [onlineData, setOnlineData] = useState(null);
 
   useEffect(() => {
     fetchDashboard();
     fetchFlaggedStats();
+    fetchOnline();
+    const interval = setInterval(fetchOnline, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchDashboard = async () => {
@@ -68,9 +74,14 @@ export default function Dashboard() {
     try {
       const res = await api.get('/moderation/stats');
       setFlaggedStats(res.data);
-    } catch {
-      // moderation endpoint may not exist yet
-    }
+    } catch {}
+  };
+
+  const fetchOnline = async () => {
+    try {
+      const res = await api.get('/online');
+      setOnlineData(res.data);
+    } catch {}
   };
 
   const trends = data?.trends || {};
@@ -185,6 +196,155 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Live Now Section */}
+      {onlineData && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="card p-6 mb-8"
+        >
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
+              <HiOutlineSignal className="w-5 h-5 text-green-600" />
+            </div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-display font-bold text-gray-900">Live Now</h3>
+              <OnlineBadge size="md" />
+              <span className="text-sm font-semibold text-green-600">
+                {onlineData.total_online} online
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Online Teachers */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <HiOutlineAcademicCap className="w-4 h-4 text-primary-600" />
+                <span className="text-sm font-semibold text-gray-700">
+                  Teachers ({onlineData.teachers.online_count} online)
+                </span>
+              </div>
+              {onlineData.teachers.online.length > 0 ? (
+                <div className="space-y-2">
+                  {onlineData.teachers.online.map((t) => (
+                    <div
+                      key={t.id}
+                      onClick={() => navigate(`/teachers/${t.id}`)}
+                      className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                    >
+                      <div className="relative">
+                        <div className="w-9 h-9 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center text-xs font-bold">
+                          {t.name?.charAt(0)?.toUpperCase() || '?'}
+                        </div>
+                        <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-900 truncate">{t.name}</p>
+                        <p className="text-xs text-gray-500 truncate">{t.school_name || t.email}</p>
+                      </div>
+                      <span className="text-xs text-green-600 font-medium whitespace-nowrap">Active now</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400 py-3">No teachers online right now</p>
+              )}
+
+              {onlineData.teachers.recent.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <p className="text-xs font-medium text-gray-400 mb-2">Recently active</p>
+                  <div className="flex flex-wrap gap-2">
+                    {onlineData.teachers.recent.map((t) => (
+                      <div
+                        key={t.id}
+                        onClick={() => navigate(`/teachers/${t.id}`)}
+                        className="flex items-center gap-2 px-2.5 py-1.5 bg-gray-50 rounded-full cursor-pointer hover:bg-gray-100 transition-colors"
+                      >
+                        <div className="relative">
+                          <div className="w-6 h-6 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-[10px] font-bold">
+                            {t.name?.charAt(0)?.toUpperCase() || '?'}
+                          </div>
+                          <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-amber-400 border border-white rounded-full" />
+                        </div>
+                        <span className="text-xs text-gray-600">{t.name?.split(' ')[0]}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Online Students */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <HiOutlineUsers className="w-4 h-4 text-blue-600" />
+                <span className="text-sm font-semibold text-gray-700">
+                  Students ({onlineData.students.online_count} online)
+                </span>
+              </div>
+              {onlineData.students.online.length > 0 ? (
+                <div className="space-y-2">
+                  {onlineData.students.online.slice(0, 8).map((s) => (
+                    <div
+                      key={s._id}
+                      onClick={() => navigate(`/students/${s._id}`)}
+                      className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                    >
+                      <div className="relative">
+                        <div className="w-9 h-9 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-bold">
+                          {s.name?.charAt(0)?.toUpperCase() || '?'}
+                        </div>
+                        <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-900 truncate">{s.name}</p>
+                        <p className="text-xs text-gray-500">Grade {s.grade || '-'}</p>
+                      </div>
+                      <span className="text-xs text-green-600 font-medium whitespace-nowrap">Active now</span>
+                    </div>
+                  ))}
+                  {onlineData.students.online.length > 8 && (
+                    <p
+                      onClick={() => navigate('/students')}
+                      className="text-xs text-primary-600 font-medium cursor-pointer hover:underline pl-2"
+                    >
+                      +{onlineData.students.online.length - 8} more students online
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400 py-3">No students online right now</p>
+              )}
+
+              {onlineData.students.recent.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <p className="text-xs font-medium text-gray-400 mb-2">Recently active</p>
+                  <div className="flex flex-wrap gap-2">
+                    {onlineData.students.recent.map((s) => (
+                      <div
+                        key={s._id}
+                        onClick={() => navigate(`/students/${s._id}`)}
+                        className="flex items-center gap-2 px-2.5 py-1.5 bg-gray-50 rounded-full cursor-pointer hover:bg-gray-100 transition-colors"
+                      >
+                        <div className="relative">
+                          <div className="w-6 h-6 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center text-[10px] font-bold">
+                            {s.name?.charAt(0)?.toUpperCase() || '?'}
+                          </div>
+                          <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-amber-400 border border-white rounded-full" />
+                        </div>
+                        <span className="text-xs text-gray-600">{s.name?.split(' ')[0]}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
