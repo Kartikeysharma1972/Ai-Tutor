@@ -9,6 +9,7 @@ import Session from '../models/Session.js';
 import TestAttempt from '../models/TestAttempt.js';
 import { buildSystemPrompt, getMockTestConfig, getExpectedTypes } from '../utils/gradePrompts.js';
 import { searchWikipediaImage, searchMultipleImages } from '../utils/imageSearch.js';
+import { getAvoidList, dedupeAgainst, recordQuestions } from '../utils/questionMemory.js';
 
 const router = Router();
 let groq;
@@ -427,10 +428,16 @@ router.post('/mock-test/generate', authMiddleware, async (req, res) => {
       config.totalTime = Math.max(15, Math.round(questionCount * 1.8));
     }
 
+    // Per-student question memory: never repeat a question this student has
+    // already been shown for this subject.
+    const avoid = await getAvoidList(req.userId, subject, 200);
+
     const systemPrompt = buildSystemPrompt(user.grade, 'mock-test', {
       subject,
       chapters,
       questionType: questionType || null,
+      questionCount: config.totalQuestions,
+      avoidQuestions: avoid.texts,
     });
 
     let questions = [];
@@ -443,7 +450,7 @@ router.post('/mock-test/generate', authMiddleware, async (req, res) => {
         : 'You MUST use a variety of question types as specified.';
 
       const aiResponse = await chatWithGroq(systemPrompt, [
-        { role: 'user', content: `Generate a mock test for ${subject}, chapters: ${chapters?.join(', ') || 'All chapters'}. ${typeInstruction} Return ONLY valid JSON: {"questions": [...]}` },
+        { role: 'user', content: `Generate a mock test for ${subject}, chapters: ${chapters?.join(', ') || 'All chapters'}. ${typeInstruction} Every question must be NEW (not in the do-not-repeat list). Return ONLY valid JSON: {"questions": [...]}` },
       ], { jsonMode: true, temperature: 0.45 + (attempt * 0.15), maxTokens: 8000 });
 
       try {
@@ -456,6 +463,8 @@ router.post('/mock-test/generate', authMiddleware, async (req, res) => {
 
       questions = fixQuestionTypes(questions, user.grade);
       questions = sanitizeQuestions(questions);
+      // Drop anything already served to this student + any in-set duplicates.
+      questions = dedupeAgainst(questions, avoid.hashes);
 
       const minCount = Math.floor(config.totalQuestions * 0.8);
       if (wantSpecificType) {
@@ -464,6 +473,9 @@ router.post('/mock-test/generate', authMiddleware, async (req, res) => {
         if (questions.length >= minCount && validateQuestionDiversity(questions, user.grade)) break;
       }
     }
+
+    // Remember what we just served so it never comes back for this student.
+    await recordQuestions(req.userId, user.grade, subject, (chapters || []).join(', '), 'mock-test', questions);
 
     res.json({ questions, config });
   } catch (err) {
@@ -637,9 +649,15 @@ router.get('/search-image', authMiddleware, async (req, res) => {
 // ---------- MULTIPLE IMAGE SEARCH ----------
 router.get('/search-images', authMiddleware, async (req, res) => {
   try {
-    const { q, subject, count } = req.query;
+    const { q, subject, count, grade } = req.query;
     if (!q) return res.json({ images: [] });
-    const images = await searchMultipleImages(q, subject || '', parseInt(count) || 3);
+    // Prefer the student's actual grade so images are age-appropriate.
+    let useGrade = parseInt(grade);
+    if (!useGrade) {
+      const user = await User.findById(req.userId).select('grade').lean();
+      useGrade = user?.grade || null;
+    }
+    const images = await searchMultipleImages(q, subject || '', parseInt(count) || 3, useGrade);
     res.json({ images });
   } catch {
     res.json({ images: [] });

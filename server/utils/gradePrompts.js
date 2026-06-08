@@ -1,9 +1,46 @@
+import { getSyllabusOutline, getChapterInfo } from './curriculumData.js';
+
 export function getGradeGroup(grade) {
   if (grade <= 3) return 'primary-lower';
   if (grade <= 5) return 'primary-upper';
   if (grade <= 8) return 'middle';
   if (grade <= 10) return 'secondary';
   return 'senior-secondary';
+}
+
+// Typical age for a CBSE class — used to anchor the AI's calibration concretely.
+function getTypicalAge(grade) {
+  return grade + 5;
+}
+
+// A hard, explicit statement of how a Class N answer must differ from other grades.
+// Injected verbatim so the model cannot drift toward a generic "average" level.
+function getGradeAnchor(grade) {
+  const age = getTypicalAge(grade);
+  return `GRADE CALIBRATION (NON-NEGOTIABLE):
+- This student is in Class ${grade} (about ${age} years old). Every sentence, example, number, and word you choose MUST fit a Class ${grade} student — not Class ${Math.max(1, grade - 2)}, not Class ${Math.min(12, grade + 2)}.
+- A Class 1 answer and a Class 10 answer to the SAME question must look completely different in vocabulary, length, depth, and the type of examples used. Produce the Class ${grade} version, nothing higher or lower.
+- Do NOT pull in concepts, formulas, or terminology that a Class ${grade} CBSE student has not been taught yet. If a harder idea is unavoidable, flag it as "you'll learn this in detail later" and keep it light.
+- Never under-teach an older student with baby language, and never overwhelm a younger student with jargon.`;
+}
+
+// Builds the strict syllabus-scope block. Forces output to stay within the
+// selected class + subject (+ chapter) and forbids other classes' content.
+function buildSyllabusScope(grade, subject, chapter) {
+  if (!subject) return '';
+  const outline = getSyllabusOutline(grade, subject);
+  if (!outline) return '';
+  const chapterInfo = chapter ? getChapterInfo(grade, subject, chapter) : null;
+  return `
+SYLLABUS SCOPE — Class ${grade} ${subject} (CBSE) — STRICT:
+The ONLY chapters in this student's Class ${grade} ${subject} syllabus are:
+${outline}
+
+HARD RULES:
+- Generate content, examples, and questions STRICTLY from the Class ${grade} ${subject} syllabus above. Nothing from a higher or lower class, and nothing from another subject.
+- If the student asks about something outside this class's syllabus, gently say it's not in their Class ${grade} syllabus, then either give a Class ${grade}-appropriate version or point to the closest in-syllabus chapter.
+${chapter ? `- The student has selected the chapter "${chapter}". Stay focused on THIS chapter.${chapterInfo?.unit ? ` (Unit: ${chapterInfo.unit})` : ''}${chapterInfo?.desc ? `\n  Chapter coverage: ${chapterInfo.desc}` : ''}` : ''}
+`;
 }
 
 export function getGradeBehavior(grade) {
@@ -283,12 +320,30 @@ const textbookMap = {
   },
 };
 
+// Maps the new split subject names back to the textbookMap keys.
+function resolveTextbookKey(subject) {
+  const s = subject.toLowerCase();
+  if (s.includes('english')) return 'English';
+  if (s.includes('hindi')) return 'Hindi';
+  if (s.includes('social science') || s === 'sst' || s.includes('history') || s.includes('geography') || s.includes('civics') || s.includes('political') || s.includes('economics')) return 'SST';
+  if (s.includes('accountancy') || s.includes('business') || s.includes('commerce')) return 'Commerce';
+  if (s.includes('math')) return 'Maths';
+  if (s.includes('physics')) return 'Physics';
+  if (s.includes('chemistry')) return 'Chemistry';
+  if (s.includes('biology')) return 'Biology';
+  if (s.includes('science')) return 'Science';
+  if (s.includes('evs')) return 'EVS';
+  return subject;
+}
+
 function getTextbookInfo(grade, subject) {
   const gradeBooks = textbookMap[grade];
   if (!gradeBooks || !subject) return null;
   if (gradeBooks[subject]) return gradeBooks[subject];
-  for (const [key, value] of Object.entries(gradeBooks)) {
-    if (subject.toLowerCase().includes(key.toLowerCase()) || key.toLowerCase().includes(subject.toLowerCase())) {
+  const key = resolveTextbookKey(subject);
+  if (gradeBooks[key]) return gradeBooks[key];
+  for (const [k, value] of Object.entries(gradeBooks)) {
+    if (subject.toLowerCase().includes(k.toLowerCase()) || k.toLowerCase().includes(subject.toLowerCase())) {
       return value;
     }
   }
@@ -299,7 +354,11 @@ export function buildSystemPrompt(grade, tool, extra = {}) {
   const behavior = getGradeBehavior(grade);
   const gradeGroup = getGradeGroup(grade);
 
+  const syllabusScope = buildSyllabusScope(grade, extra.subject, extra.chapter);
+
   let systemPrompt = `You are an AI Tutor for a Class ${grade} student studying the CBSE curriculum in India.
+
+${getGradeAnchor(grade)}
 
 GRADE BEHAVIOR PROFILE:
 - Tone: ${behavior.tone}
@@ -308,11 +367,11 @@ GRADE BEHAVIOR PROFILE:
 - Example Style: ${behavior.examples}
 
 ${behavior.presentation}
-
+${syllabusScope}
 IMPORTANT RULES:
 - Always calibrate your language, depth, and examples to a Class ${grade} student
 - A Class 1 student and a Class 12 student have COMPLETELY different minds — your response must reflect that
-- Follow NCERT/CBSE syllabus scope strictly
+- Follow NCERT/CBSE syllabus scope strictly — only this class's syllabus, never another grade's
 - Be encouraging and supportive
 - Use Hindi transliteration sparingly if it helps explain a concept
 
@@ -513,12 +572,21 @@ GUIDELINES:
     const typeDistribution = getQuestionTypeDistribution(gradeGroup, overrideCount);
     const textbook = getTextbookInfo(grade, extra.subject);
     const wantSpecificType = extra.questionType && extra.questionType !== 'surprise';
+    const avoidList = Array.isArray(extra.avoidQuestions) ? extra.avoidQuestions.filter(Boolean) : [];
+    const avoidBlock = avoidList.length
+      ? `
+🚫 DO NOT REPEAT — the student has ALREADY been asked the following questions before. You MUST NOT repeat any of them, NOT even reworded, reordered, or with changed numbers. Create fresh, different questions:
+${avoidList.slice(0, 120).map((q, i) => `${i + 1}. ${q}`).join('\n')}
+`
+      : '';
     systemPrompt += `
 TOOL: Mock Test Generator
 SUBJECT: ${extra.subject}
 CHAPTERS: ${extra.chapters?.join(', ') || 'All'}
 ${textbook ? `REFERENCE TEXTBOOK: ${textbook} — Generate questions matching the style, difficulty, and exercise patterns found in this textbook.` : ''}
 ${wantSpecificType ? `QUESTION TYPE FILTER: Generate ALL questions of type "${extra.questionType}" ONLY. Do NOT mix other types.` : ''}
+${avoidBlock}
+ZERO-REPEAT RULE: Inside THIS test, every question must be unique — no two questions may test the same fact with the same wording. Vary the concept, angle, and numbers across questions.
 
 Generate exactly ${overrideCount} questions following this structure:
 - Easy: ${testConfig.easyPercent}% (${Math.round(overrideCount * testConfig.easyPercent / 100)} questions)

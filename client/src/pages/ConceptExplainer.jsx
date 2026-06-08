@@ -209,6 +209,29 @@ export default function ConceptExplainer() {
       setSessionId(response.data.sessionId);
       const aiText = response.data.response;
       setMessages(prev => [...prev, { role: 'assistant', content: aiText }]);
+
+      // Auto-fetch grade-appropriate illustrations for text questions (skip for
+      // image/file uploads where the student already provided their own visual).
+      if (!imageFile && !docFile && userMessage) {
+        aiAPI
+          .searchImages(userMessage, subject || undefined, 3, user?.grade)
+          .then(imgRes => {
+            const imgs = imgRes.data.images || [];
+            if (imgs.length === 0) return;
+            setMessages(prev => {
+              const next = [...prev];
+              // Attach to the most recent assistant message.
+              for (let i = next.length - 1; i >= 0; i--) {
+                if (next[i].role === 'assistant') {
+                  next[i] = { ...next[i], images: imgs };
+                  break;
+                }
+              }
+              return next;
+            });
+          })
+          .catch(() => {});
+      }
     } catch (err) {
       toast.error('Failed to get response');
       setMessages(prev => prev.slice(0, -1));
@@ -358,7 +381,29 @@ export default function ConceptExplainer() {
                     : 'bg-white border border-gray-100 shadow-[0_1px_2px_rgba(15,23,42,0.04)] rounded-bl-md'
                 }`}>
                   {msg.role === 'assistant' ? (
-                    <ChatMarkdown content={msg.content} />
+                    <>
+                      <ChatMarkdown content={msg.content} />
+                      {Array.isArray(msg.images) && msg.images.length > 0 && (
+                        <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {msg.images.map((img, idx) => (
+                            <a
+                              key={idx}
+                              href={img.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block group"
+                            >
+                              <img
+                                src={img.url}
+                                alt={img.alt || 'illustration'}
+                                loading="lazy"
+                                className="w-full h-28 object-cover rounded-xl border border-gray-200 shadow-sm group-hover:opacity-90 transition-opacity"
+                              />
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <p className="text-[13.5px] whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                   )}

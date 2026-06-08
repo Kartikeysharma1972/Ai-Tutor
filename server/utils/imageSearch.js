@@ -149,25 +149,45 @@ async function tryCommonsSearch(topic) {
   }
 }
 
-async function tryCommonsSearchMultiple(topic, count = 3) {
-  try {
-    const data = await fetchJson(
-      `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(topic)}&gsrnamespace=6&gsrlimit=10&prop=imageinfo&iiprop=url|mime&iiurlwidth=500&format=json&origin=*`
-    );
-    const pages = data?.query?.pages;
-    if (!pages) return [];
-    const results = [];
-    for (const page of Object.values(pages)) {
-      if (results.length >= count) break;
-      const info = page.imageinfo?.[0];
-      if (info?.mime?.startsWith('image/') && info.mime !== 'image/svg+xml') {
-        results.push({ url: info.thumburl || info.url, alt: page.title.replace('File:', '') });
+// Grade-aware search flavour (adapted from the grade-specific Wikimedia
+// Commons approach): younger kids get cartoon/clipart/drawing style images,
+// middle grades get real photos, seniors get detailed/high-resolution images.
+function gradeFlavoredQuery(topic, grade) {
+  const g = parseInt(grade);
+  if (!g || Number.isNaN(g)) return topic;
+  if (g <= 3) return `${topic} (cartoon OR clipart OR drawing OR illustration)`;
+  if (g <= 7) return `${topic} (diagram OR photo OR illustration)`;
+  return `${topic} (diagram OR labelled OR detailed)`;
+}
+
+async function tryCommonsSearchMultiple(topic, count = 3, grade = null) {
+  // Try the grade-flavoured query first, then fall back to the plain topic so
+  // we never return empty just because the flavour was too narrow.
+  const queries = grade ? [gradeFlavoredQuery(topic, grade), topic] : [topic];
+  const results = [];
+  const seen = new Set();
+  for (const q of queries) {
+    if (results.length >= count) break;
+    try {
+      const data = await fetchJson(
+        `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrnamespace=6&gsrlimit=10&prop=imageinfo&iiprop=url|mime&iiurlwidth=500&format=json&origin=*`
+      );
+      const pages = data?.query?.pages;
+      if (!pages) continue;
+      for (const page of Object.values(pages)) {
+        if (results.length >= count) break;
+        const info = page.imageinfo?.[0];
+        const url = info?.thumburl || info?.url;
+        if (url && !seen.has(url) && info?.mime?.startsWith('image/') && info.mime !== 'image/svg+xml') {
+          seen.add(url);
+          results.push({ url, alt: page.title.replace('File:', '') });
+        }
       }
+    } catch {
+      // try next query
     }
-    return results;
-  } catch {
-    return [];
   }
+  return results;
 }
 
 export async function searchWikipediaImage(topic, subject) {
@@ -213,7 +233,7 @@ export async function searchWikipediaImage(topic, subject) {
   }
 }
 
-export async function searchMultipleImages(topic, subject, count = 3) {
+export async function searchMultipleImages(topic, subject, count = 3, grade = null) {
   const images = [];
   const seenUrls = new Set();
 
@@ -228,29 +248,35 @@ export async function searchMultipleImages(topic, subject, count = 3) {
     }
   }
 
-  const restResult = await tryRestApi(searchTerm);
-  addImage(restResult);
-  if (images.length >= count) return images;
+  const g = parseInt(grade);
+  const juniorMode = g && g <= 3; // young kids: prefer fun cartoon/clipart visuals
 
-  const searchResults = await searchWikipediaPages(searchTerm, 'en');
-  for (const result of searchResults) {
-    if (images.length >= count) break;
-    const img = await tryPageImagesApi(result.title, 'en');
-    addImage(img);
+  // 1) Wikipedia lead image — most topic-accurate, single best image.
+  addImage(await tryRestApi(searchTerm));
+
+  async function fillFromCommons() {
+    if (images.length >= count) return;
+    const commonsResults = await tryCommonsSearchMultiple(searchTerm, count - images.length, grade);
+    for (const img of commonsResults) addImage(img);
   }
-  if (images.length >= count) return images;
-
-  const hiResults = await searchWikipediaPages(searchTerm, 'hi');
-  for (const result of hiResults) {
-    if (images.length >= count) break;
-    const img = await tryPageImagesApi(result.title, 'hi');
-    addImage(img);
+  async function fillFromWikiPages(lang) {
+    if (images.length >= count) return;
+    const results = await searchWikipediaPages(searchTerm, lang);
+    for (const result of results) {
+      if (images.length >= count) break;
+      addImage(await tryPageImagesApi(result.title, lang));
+    }
   }
-  if (images.length >= count) return images;
 
-  const commonsResults = await tryCommonsSearchMultiple(searchTerm, count - images.length);
-  for (const img of commonsResults) {
-    addImage(img);
+  // Juniors: cartoon/clipart Commons images first. Older students: topical
+  // Wikipedia article images first, then grade-flavoured Commons to top up.
+  if (juniorMode) {
+    await fillFromCommons();
+    await fillFromWikiPages('en');
+  } else {
+    await fillFromWikiPages('en');
+    await fillFromCommons();
+    await fillFromWikiPages('hi');
   }
 
   return images;
