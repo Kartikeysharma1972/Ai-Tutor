@@ -16,6 +16,53 @@ const tabs = [
   { id: 'practice', label: 'Practice', icon: FiEdit3 },
 ];
 
+// Lightweight Markdown → HTML for the printable PDF. The on-screen view uses
+// react-markdown, but the print window is a bare document, so we convert the
+// common constructs (headings, bold/italic, lists, inline code) ourselves —
+// otherwise the PDF shows raw "##" / "**" syntax.
+function mdToHtml(md) {
+  if (!md) return '';
+  const escape = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const inline = (t) => escape(t)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[^*])\*(?!\*)(.+?)\*(?!\*)/g, '$1<em>$2</em>')
+    .replace(/`(.+?)`/g, '<code>$1</code>');
+
+  const lines = md.split('\n');
+  let html = '';
+  let list = null; // 'ul' | 'ol'
+  const closeList = () => { if (list) { html += `</${list}>`; list = null; } };
+
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    if (!line.trim()) { closeList(); continue; }
+    // Skip markdown table separator rows like |---|---|
+    if (/^\s*\|?[\s:|-]+\|?\s*$/.test(line) && line.includes('-')) continue;
+    let m;
+    if ((m = line.match(/^(#{1,4})\s+(.*)/))) {
+      closeList();
+      const lvl = m[1].length;
+      html += `<h${lvl}>${inline(m[2])}</h${lvl}>`;
+    } else if ((m = line.match(/^\s*[-*]\s+(.*)/))) {
+      if (list !== 'ul') { closeList(); html += '<ul>'; list = 'ul'; }
+      html += `<li>${inline(m[1])}</li>`;
+    } else if ((m = line.match(/^\s*\d+[.)]\s+(.*)/))) {
+      if (list !== 'ol') { closeList(); html += '<ol>'; list = 'ol'; }
+      html += `<li>${inline(m[1])}</li>`;
+    } else if (line.includes('|') && line.replace(/[^|]/g, '').length >= 2) {
+      // Render a markdown table row as a simple pipe-free line
+      closeList();
+      const cells = line.split('|').map(c => c.trim()).filter(Boolean);
+      html += `<p>${cells.map(inline).join(' &nbsp;·&nbsp; ')}</p>`;
+    } else {
+      closeList();
+      html += `<p>${inline(line)}</p>`;
+    }
+  }
+  closeList();
+  return html;
+}
+
 function parseSections(markdown) {
   const sections = { concepts: '', mindmap: '', 'exam-questions': '', practice: '' };
   if (!markdown) return sections;
@@ -136,6 +183,7 @@ export default function FocusArea() {
   const handleDownloadPDF = () => {
     if (!result) return;
     const win = window.open('', '_blank');
+    if (!win) { toast.error('Allow pop-ups to download the report'); return; }
     const heading = topic.trim() ? topic.trim() : 'Full Chapter';
     win.document.write(`
       <html><head><title>Focus Area — ${heading}</title>
@@ -152,7 +200,7 @@ export default function FocusArea() {
       </style></head><body>
       <h1>${subject} — ${selectedChapter}</h1>
       <h2>${heading}</h2>
-      <div>${result.replace(/\n/g, '<br>')}</div>
+      <div>${mdToHtml(result)}</div>
       </body></html>
     `);
     win.document.close();

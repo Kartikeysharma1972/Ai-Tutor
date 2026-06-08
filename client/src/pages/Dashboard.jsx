@@ -11,7 +11,7 @@ const tools = [
     path: '/concept-explainer',
     icon: FiBookOpen,
     title: 'Concept Explainer',
-    desc: 'Ask any CBSE question. Upload images, PDFs, or use voice — get grade-adaptive answers with diagrams.',
+    desc: 'Ask any CBSE question. Upload images, PDFs, or use voice — get clear, grade-adaptive explanations.',
     iconBg: 'from-sky-100 to-sky-200/70',
     iconColor: 'text-sky-600',
     chipBg: 'bg-sky-50 text-sky-700 border-sky-100',

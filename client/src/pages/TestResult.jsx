@@ -41,6 +41,7 @@ export default function TestResult() {
       sessionAPI.getTest(testId).then(res => {
         const t = res.data.test;
         setResult({
+          subject: t.subject,
           score: t.score,
           totalQuestions: t.totalQuestions,
           accuracy: t.accuracy,
@@ -58,6 +59,7 @@ export default function TestResult() {
     const printContent = printRef.current;
     if (!printContent) return;
     const win = window.open('', '_blank');
+    if (!win) { toast.error('Allow pop-ups to download the report'); return; }
     win.document.write(`
       <html><head><title>Mock Test Report</title>
       <style>

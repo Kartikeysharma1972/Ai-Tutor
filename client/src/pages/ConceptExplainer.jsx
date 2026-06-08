@@ -161,7 +161,7 @@ export default function ConceptExplainer() {
     if (docInputRef.current) docInputRef.current.value = '';
   };
 
-  const handleSend = async (overrideInput) => {
+  const handleSend = async (overrideInput, levelOverride) => {
     const inputToSend = (overrideInput ?? input).trim();
     if (!inputToSend && !imageFile && !docFile) return;
     if (isListening) {
@@ -169,6 +169,7 @@ export default function ConceptExplainer() {
       setIsListening(false);
     }
     const userMessage = inputToSend;
+    const useLevel = levelOverride || level;
     setInput('');
     const displayContent = userMessage || (imageFile ? '[Image uploaded]' : docFile ? `[File: ${docFile.name}]` : '');
     setMessages(prev => [...prev, { role: 'user', content: displayContent }]);
@@ -180,7 +181,7 @@ export default function ConceptExplainer() {
         const formData = new FormData();
         formData.append('image', imageFile);
         formData.append('message', userMessage);
-        formData.append('explanationLevel', level);
+        formData.append('explanationLevel', useLevel);
         if (subject) formData.append('subject', subject);
         if (chapter) formData.append('chapter', chapter);
         if (sessionId) formData.append('sessionId', sessionId);
@@ -190,7 +191,7 @@ export default function ConceptExplainer() {
         const formData = new FormData();
         formData.append('file', docFile);
         formData.append('message', userMessage);
-        formData.append('explanationLevel', level);
+        formData.append('explanationLevel', useLevel);
         if (subject) formData.append('subject', subject);
         if (chapter) formData.append('chapter', chapter);
         if (sessionId) formData.append('sessionId', sessionId);
@@ -200,7 +201,7 @@ export default function ConceptExplainer() {
         response = await aiAPI.conceptExplainer({
           message: userMessage,
           sessionId,
-          explanationLevel: level,
+          explanationLevel: useLevel,
           subject: subject || undefined,
           chapter: chapter || undefined,
         });
@@ -209,29 +210,6 @@ export default function ConceptExplainer() {
       setSessionId(response.data.sessionId);
       const aiText = response.data.response;
       setMessages(prev => [...prev, { role: 'assistant', content: aiText }]);
-
-      // Auto-fetch grade-appropriate illustrations for text questions (skip for
-      // image/file uploads where the student already provided their own visual).
-      if (!imageFile && !docFile && userMessage) {
-        aiAPI
-          .searchImages(userMessage, subject || undefined, 3, user?.grade)
-          .then(imgRes => {
-            const imgs = imgRes.data.images || [];
-            if (imgs.length === 0) return;
-            setMessages(prev => {
-              const next = [...prev];
-              // Attach to the most recent assistant message.
-              for (let i = next.length - 1; i >= 0; i--) {
-                if (next[i].role === 'assistant') {
-                  next[i] = { ...next[i], images: imgs };
-                  break;
-                }
-              }
-              return next;
-            });
-          })
-          .catch(() => {});
-      }
     } catch (err) {
       toast.error('Failed to get response');
       setMessages(prev => prev.slice(0, -1));
@@ -239,6 +217,40 @@ export default function ConceptExplainer() {
       setLoading(false);
     }
   };
+
+  // The last real (typed) question the student asked — used to re-explain at a
+  // new difficulty level when they switch Beginner/Intermediate/Advanced.
+  const lastTypedQuestion = () => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m.role === 'user' && m.content && !m.content.startsWith('[Image') && !m.content.startsWith('[File')) {
+        return m.content;
+      }
+    }
+    return null;
+  };
+
+  // Clicking a level: if the student has already asked something, re-answer that
+  // SAME question at the new level. Otherwise just switch the level for the next question.
+  const handleLevelChange = (newLevel) => {
+    if (newLevel === level) return;
+    setLevel(newLevel);
+    if (loading) return;
+    const lastQ = lastTypedQuestion();
+    if (lastQ) handleSend(lastQ, newLevel);
+  };
+
+  // 3-4 standardized starter questions that adapt to the chosen chapter/subject.
+  const quickQuestions = (() => {
+    const topic = chapter || subject;
+    if (!topic) return [];
+    return [
+      `What is ${topic}?`,
+      `Explain ${topic} with a simple example`,
+      `What are the key points and important factors in ${topic}?`,
+      `Which important questions can come from ${topic} in exams?`,
+    ];
+  })();
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -265,7 +277,7 @@ export default function ConceptExplainer() {
                   return (
                     <button
                       key={l.key}
-                      onClick={() => setLevel(l.key)}
+                      onClick={() => handleLevelChange(l.key)}
                       title={l.desc}
                       className={`px-3.5 py-1.5 rounded-lg text-[12.5px] font-semibold transition-all ${
                         active
@@ -345,18 +357,34 @@ export default function ConceptExplainer() {
                   Pick a subject + chapter for focused answers, or just ask. You can also speak, attach an image, or drop a PDF.
                 </p>
 
-                {/* Sample prompts */}
-                <div className="mt-7 grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-2xl mx-auto">
-                  {samplePrompts.map((p, i) => (
-                    <button
-                      key={i}
-                      onClick={() => handleSend(p.text)}
-                      className="surface surface-hover text-left px-4 py-3 flex items-start gap-3 group"
-                    >
-                      <span className="text-xl flex-shrink-0">{p.emoji}</span>
-                      <span className="text-[13px] text-gray-700 leading-relaxed group-hover:text-gray-900">{p.text}</span>
-                    </button>
-                  ))}
+                {/* Starter questions — standardized & topic-aware once a subject/chapter is picked */}
+                {quickQuestions.length > 0 && (
+                  <p className="mt-6 text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                    Quick questions on {chapter || subject}
+                  </p>
+                )}
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-2xl mx-auto">
+                  {quickQuestions.length > 0
+                    ? quickQuestions.map((q, i) => (
+                        <button
+                          key={i}
+                          onClick={() => handleSend(q)}
+                          className="surface surface-hover text-left px-4 py-3 flex items-start gap-3 group"
+                        >
+                          <span className="text-xl flex-shrink-0">{['❓', '💡', '🔑', '📝'][i] || '✨'}</span>
+                          <span className="text-[13px] text-gray-700 leading-relaxed group-hover:text-gray-900">{q}</span>
+                        </button>
+                      ))
+                    : samplePrompts.map((p, i) => (
+                        <button
+                          key={i}
+                          onClick={() => handleSend(p.text)}
+                          className="surface surface-hover text-left px-4 py-3 flex items-start gap-3 group"
+                        >
+                          <span className="text-xl flex-shrink-0">{p.emoji}</span>
+                          <span className="text-[13px] text-gray-700 leading-relaxed group-hover:text-gray-900">{p.text}</span>
+                        </button>
+                      ))}
                 </div>
 
                 {SpeechRecognition && (
@@ -381,29 +409,7 @@ export default function ConceptExplainer() {
                     : 'bg-white border border-gray-100 shadow-[0_1px_2px_rgba(15,23,42,0.04)] rounded-bl-md'
                 }`}>
                   {msg.role === 'assistant' ? (
-                    <>
-                      <ChatMarkdown content={msg.content} />
-                      {Array.isArray(msg.images) && msg.images.length > 0 && (
-                        <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
-                          {msg.images.map((img, idx) => (
-                            <a
-                              key={idx}
-                              href={img.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="block group"
-                            >
-                              <img
-                                src={img.url}
-                                alt={img.alt || 'illustration'}
-                                loading="lazy"
-                                className="w-full h-28 object-cover rounded-xl border border-gray-200 shadow-sm group-hover:opacity-90 transition-opacity"
-                              />
-                            </a>
-                          ))}
-                        </div>
-                      )}
-                    </>
+                    <ChatMarkdown content={msg.content} />
                   ) : (
                     <p className="text-[13.5px] whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                   )}
@@ -466,6 +472,24 @@ export default function ConceptExplainer() {
             <div className="flex items-center gap-2 justify-center">
               <span className="w-2 h-2 bg-rose-500 rounded-full animate-pulse"></span>
               <span className="text-[12px] text-rose-600 font-semibold">Listening… speak now</span>
+            </div>
+          </div>
+        )}
+
+        {/* Quick question chips — always handy once a topic is picked */}
+        {quickQuestions.length > 0 && messages.length > 0 && (
+          <div className="px-4 md:px-5 pt-2 border-t border-gray-100 bg-white">
+            <div className="max-w-3xl mx-auto flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+              {quickQuestions.map((q, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleSend(q)}
+                  disabled={loading}
+                  className="flex-shrink-0 px-3 py-1.5 rounded-full border border-gray-200 bg-gray-50 text-[12px] text-gray-600 hover:border-primary-300 hover:text-primary-700 hover:bg-primary-50 transition-colors disabled:opacity-40"
+                >
+                  {q.length > 38 ? q.slice(0, 38) + '…' : q}
+                </button>
+              ))}
             </div>
           </div>
         )}

@@ -434,11 +434,11 @@ export default function MockTest() {
               <motion.div key={current} initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.25 }}>
                 <div className="flex items-center gap-2 mb-3 flex-wrap">
                   {q.type && <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-bold uppercase tracking-wider bg-primary-50 text-primary-700 border border-primary-100">{formatType(q.type)}</span>}
-                  <span className={`px-2.5 py-0.5 rounded-full text-[10.5px] font-bold uppercase tracking-wider border ${
+                  {q.difficulty && <span className={`px-2.5 py-0.5 rounded-full text-[10.5px] font-bold uppercase tracking-wider border ${
                     q.difficulty === 'easy' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
                     q.difficulty === 'medium' ? 'bg-amber-50 text-amber-700 border-amber-100' :
                     'bg-rose-50 text-rose-700 border-rose-100'
-                  }`}>{q.difficulty}</span>
+                  }`}>{q.difficulty}</span>}
                   {q.topic && <span className="text-[11px] text-gray-400">· {q.topic}</span>}
                 </div>
 
